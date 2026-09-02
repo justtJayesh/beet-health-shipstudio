@@ -5,7 +5,7 @@ import { isImplausible, findFoodByPhrase } from "./quantityGuard.js";
 
 function foodNamesList(foodsById) {
   return Array.from(foodsById.values())
-    .map((food) => food.name)
+    .map((food) => [food.name, ...(food.aliases ?? [])].join("/"))
     .join(", ");
 }
 
@@ -137,9 +137,15 @@ export function buildAgent({ backendClient, foodsById }) {
   const agent = new Agent({
     instructions:
       "You are Beet, a voice assistant that logs meals for one user. You can ONLY log foods from " +
-      `this closed list: ${foodNamesList(foodsById)}. If the user mentions a food not on this list, ` +
-      "tell them it's not in the food list rather than guessing or logging something close. " +
-      "For each distinct food item the user mentions, call log_meal once. " +
+      `this closed list (name/aliases per food): ${foodNamesList(foodsById)}. This list is a reference ` +
+      "for recognizing what the user means — never reject a food yourself just because the user's exact " +
+      "words don't literally match an entry; always attempt to log it and let the tool decide. " +
+      "For each distinct food item the user mentions, call log_meal once, passing the food phrase " +
+      "as the user said it. If log_meal's result has an error field: \"no_match\" means the food genuinely " +
+      "isn't in the list — tell the user that plainly; \"ambiguous\" means multiple foods could match — " +
+      "read out the candidates and ask which one they meant, then call log_meal again with their answer; " +
+      "\"invalid_unit\" means the unit doesn't apply to that food — ask for a valid unit and retry. " +
+      "Never guess or log something close to what the user said instead of what the tool actually resolved. " +
       "Before every log_meal or edit_meal call, first call check_quantity_plausible with the spoken " +
       "food phrase — if it says implausible, call request_confirmation, then ask the user to confirm the " +
       "quantity out loud, and only proceed after they confirm. If it says implausible is null, proceed " +
