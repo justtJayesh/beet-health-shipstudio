@@ -91,7 +91,12 @@ export function createMealsRouter({ index }) {
         return res.status(404).json({ error: "meal_not_found" });
       }
 
-      const { food, quantity, unit, mealType, loggedAt } = req.body ?? {};
+      const { food, quantity, unit, mealType, loggedAt, idempotencyKey } = req.body ?? {};
+
+      if (idempotencyKey && meal.idempotencyKey === idempotencyKey) {
+        return res.status(200).json({ meal, deduped: true });
+      }
+
       if (quantity != null && !Number.isFinite(Number(quantity))) {
         return res.status(400).json({ error: "invalid_quantity", message: "quantity must be a finite number" });
       }
@@ -116,8 +121,21 @@ export function createMealsRouter({ index }) {
 
       if (mealType) meal.mealType = mealType;
       if (loggedAt) meal.loggedAt = new Date(loggedAt);
+      if (idempotencyKey) meal.idempotencyKey = idempotencyKey;
 
-      await meal.save();
+      try {
+        await meal.save();
+      } catch (err) {
+        // ponytail: mirrors POST's race-guard, same low-probability window —
+        // a concurrent request with the same idempotencyKey beat us to it.
+        if (err.code === 11000 && idempotencyKey) {
+          const existing = await Meal.findOne({ _id: req.params.id, userId: DEFAULT_USER_ID });
+          if (existing) {
+            return res.status(200).json({ meal: existing, deduped: true });
+          }
+        }
+        throw err;
+      }
       broadcast({ type: "meal_updated", meal });
       return res.json({ meal });
     } catch (err) {
