@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { VoiceButton } from "./VoiceButton.jsx";
 
 let capturedOnMediaDeviceFailure;
+let mockAgentTranscriptions = [];
 
 vi.mock("@livekit/components-react", () => ({
   LiveKitRoom: ({ children, token, serverUrl, onMediaDeviceFailure }) => {
@@ -13,7 +14,9 @@ vi.mock("@livekit/components-react", () => ({
       </div>
     );
   },
+  RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
   useLocalParticipant: () => ({ microphoneTrack: undefined }),
+  useVoiceAssistant: () => ({ agentTranscriptions: mockAgentTranscriptions }),
   BarVisualizer: () => <div data-testid="bar-visualizer" />,
 }));
 
@@ -25,6 +28,7 @@ vi.mock("@livekit/components-styles", () => ({}));
 
 beforeEach(() => {
   capturedOnMediaDeviceFailure = undefined;
+  mockAgentTranscriptions = [];
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ token: "test-token", url: "wss://example.com", roomName: "beet-voice-session" }),
@@ -42,6 +46,17 @@ describe("VoiceButton", () => {
     );
     await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /stop talking to agent/i })).toBeInTheDocument();
+    expect(screen.getByTestId("room-audio-renderer")).toBeInTheDocument();
+  });
+
+  it("shows the agent's last spoken line as text, since TTS audio is easy to miss", async () => {
+    mockAgentTranscriptions = [
+      { text: "How much milk did you have?", final: true, id: "1" },
+    ];
+    render(<VoiceButton />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+
+    await waitFor(() => expect(screen.getByText(/how much milk did you have\?/i)).toBeInTheDocument());
   });
 
   it("disconnects and tears down the room when clicked again", async () => {

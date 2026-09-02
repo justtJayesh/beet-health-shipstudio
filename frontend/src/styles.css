@@ -58,6 +58,13 @@ body {
   margin: 8px 0 0;
 }
 
+.agent-transcript {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-ink);
+  margin: 12px 0 0;
+}
+
 /* @livekit/components-styles sizes bars by percentage height, which
    collapses to 0px without an explicit height on this container. */
 .lk-audio-bar-visualizer {

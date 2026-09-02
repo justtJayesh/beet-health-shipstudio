@@ -1,5 +1,11 @@
 import { useCallback, useState } from "react";
-import { LiveKitRoom, useLocalParticipant, BarVisualizer } from "@livekit/components-react";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  useLocalParticipant,
+  useVoiceAssistant,
+  BarVisualizer,
+} from "@livekit/components-react";
 import { MediaDeviceFailure } from "livekit-client";
 import "@livekit/components-styles";
 
@@ -17,6 +23,19 @@ const MIC_FAILURE_MESSAGES = {
 function MicVisualizer() {
   const { microphoneTrack } = useLocalParticipant();
   return <BarVisualizer barCount={5} track={microphoneTrack?.track} />;
+}
+
+// Shows the agent's last spoken line as text — the agent's own TTS audio
+// is easy to miss (muted speakers, not listening), so this is the only
+// reliable way a user finds out the agent asked a clarifying question or
+// rejected a food.
+function AgentTranscript() {
+  const { agentTranscriptions } = useVoiceAssistant();
+  const last = agentTranscriptions[agentTranscriptions.length - 1];
+  if (!last) {
+    return null;
+  }
+  return <p className="agent-transcript">Agent: {last.text}</p>;
 }
 
 export function VoiceButton({ onDisconnect }) {
@@ -66,7 +85,9 @@ export function VoiceButton({ onDisconnect }) {
           audio
           onMediaDeviceFailure={handleMediaDeviceFailure}
         >
+          <RoomAudioRenderer />
           <MicVisualizer />
+          <AgentTranscript />
         </LiveKitRoom>
       )}
     </div>
