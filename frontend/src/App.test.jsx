@@ -24,9 +24,11 @@ beforeEach(() => {
   global.EventSource = MockEventSource;
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
-    json: async () => [
-      { _id: "a", name: "Roti", quantity: 2, unit: "piece", macros: { calories: 594, protein: 22.4, carbs: 116, fat: 7.4 }, mealType: "lunch", loggedAt: "2026-09-02T12:00:00.000Z" },
-    ],
+    json: async () => ({
+      meals: [
+        { _id: "a", name: "Roti", quantity: 2, unit: "piece", macros: { calories: 594, protein: 22.4, carbs: 116, fat: 7.4 }, mealType: "lunch", loggedAt: "2026-09-02T12:00:00.000Z" },
+      ],
+    }),
   });
 });
 

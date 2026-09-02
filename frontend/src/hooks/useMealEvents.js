@@ -14,7 +14,7 @@ export function useMealEvents(hours = 48) {
         throw new Error(`GET /api/meals failed: ${res.status}`);
       }
       const data = await res.json();
-      setMeals(data);
+      setMeals(data.meals);
       setError(null);
     } catch (err) {
       setError(err);

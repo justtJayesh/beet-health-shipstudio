@@ -29,7 +29,7 @@ beforeEach(() => {
   global.EventSource = MockEventSource;
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
-    json: async () => [meal2, meal1],
+    json: async () => ({ meals: [meal2, meal1] }),
   });
 });
 
@@ -136,7 +136,7 @@ describe("useMealEvents", () => {
     act(() => MockEventSource.instances[0].emit("open", {}));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
 
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [meal1] });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ meals: [meal1] }) });
     act(() => MockEventSource.instances[0].emit("open", {}));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
@@ -150,7 +150,7 @@ describe("useMealEvents", () => {
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
 
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => [meal1] });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ meals: [meal1] }) });
     await act(async () => {
       await result.current.retry();
     });
