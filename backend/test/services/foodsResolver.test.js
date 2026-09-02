@@ -37,6 +37,16 @@ const sampleFoods = [
       { name: "gram", grams: 1 },
     ],
   },
+  // Added for Finding 3's regression test: a food whose alias ("yoghurt") is
+  // lexically close to dahi's alias ("yogurt"), but not equally close to a
+  // given typo query.
+  {
+    id: "lassi",
+    name: "Lassi",
+    aliases: ["yoghurt"],
+    macrosPer100g: { calories: 89, protein: 3.1, carbs: 12.0, fat: 2.5 },
+    units: [{ name: "glass", grams: 250 }],
+  },
 ];
 
 const index = buildFoodsIndex(sampleFoods);
@@ -81,10 +91,23 @@ describe("resolveFood", () => {
     expect(result.matchType).toBe("fuzzy");
   });
 
-  it("returns ambiguous when two foods are within the fuzzy threshold", () => {
-    const result = resolveFood("dahl", index); // 1 edit from both "dal" and "dahi"
+  it("returns ambiguous when two foods are within the fuzzy threshold and genuinely tied", () => {
+    const result = resolveFood("dahl", index); // 1 edit from both "dal" and "dahi" — a real tie at the minimum distance
     expect(result.outcome).toBe("ambiguous");
     expect(result.candidates.map((c) => c.id).sort()).toEqual(["dahi", "dal"]);
+  });
+
+  it("resolves to the strictly-closer candidate instead of over-broad ambiguity (Finding 3 fix)", () => {
+    // "yagurt" is within the old raw threshold (2, since length 6 > 5) of BOTH
+    // dahi's alias "yogurt" (distance 1) and lassi's alias "yoghurt" (distance 2).
+    // Before the fix, both were dumped into "ambiguous" candidates just for
+    // passing the threshold. After the fix, only the minimum-distance
+    // candidate (dahi, distance 1) counts — lassi (distance 2) is strictly
+    // farther and should not force a clarifying question.
+    const result = resolveFood("yagurt", index);
+    expect(result.outcome).toBe("match");
+    expect(result.food.id).toBe("dahi");
+    expect(result.matchType).toBe("fuzzy");
   });
 
   it("returns no_match for a food outside the closed 30-food set", () => {

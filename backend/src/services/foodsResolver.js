@@ -61,7 +61,7 @@ export function resolveFood(query, index) {
   }
 
   const threshold = fuzzyThreshold(q);
-  const candidates = new Map(); // food.id -> food
+  const candidates = new Map(); // food.id -> { food, dist }
 
   for (const food of index.foods) {
     const terms = [food.name, food.id, ...(food.aliases ?? [])];
@@ -71,20 +71,26 @@ export function resolveFood(query, index) {
       if (d < best) best = d;
     }
     if (best <= threshold) {
-      candidates.set(food.id, food);
+      candidates.set(food.id, { food, dist: best });
     }
   }
 
   if (candidates.size === 0) {
     return { outcome: "no_match" };
   }
-  if (candidates.size === 1) {
-    const [food] = candidates.values();
-    return { outcome: "match", food, matchType: "fuzzy" };
+
+  // Among everything within the threshold, only the closest matches count as
+  // real candidates — a strictly-closer single winner should resolve, not be
+  // thrown into "ambiguous" alongside farther-off matches.
+  const minDist = Math.min(...[...candidates.values()].map((c) => c.dist));
+  const closest = [...candidates.values()].filter((c) => c.dist === minDist);
+
+  if (closest.length === 1) {
+    return { outcome: "match", food: closest[0].food, matchType: "fuzzy" };
   }
   return {
     outcome: "ambiguous",
-    candidates: [...candidates.values()].map((food) => ({ id: food.id, name: food.name })),
+    candidates: closest.map(({ food }) => ({ id: food.id, name: food.name })),
   };
 }
 
