@@ -56,6 +56,15 @@ async function postMeal(body) {
   return { status: res.status, body: await res.json() };
 }
 
+async function patchMeal(id, body) {
+  const res = await fetch(`${baseUrl}/api/meals/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 describe("POST /api/meals", () => {
   it("logs a meal and computes macros server-side", async () => {
     const { status, body } = await postMeal({
@@ -268,6 +277,42 @@ describe("PATCH /api/meals/:id", () => {
       body: JSON.stringify({ quantity: "abc" }),
     });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/meals/:id idempotency", () => {
+  it("returns deduped:true on a repeated idempotencyKey without double-applying the edit", async () => {
+    const { body: created } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const mealId = created.meal._id;
+
+    const first = await patchMeal(mealId, { quantity: 3, idempotencyKey: "edit-key-1" });
+    expect(first.status).toBe(200);
+    expect(first.body.meal.quantity).toBe(3);
+
+    const second = await patchMeal(mealId, { quantity: 3, idempotencyKey: "edit-key-1" });
+    expect(second.status).toBe(200);
+    expect(second.body.deduped).toBe(true);
+    expect(second.body.meal.quantity).toBe(3);
+  });
+
+  it("applies a normal edit with no idempotencyKey exactly as before", async () => {
+    const { body: created } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const { status, body } = await patchMeal(created.meal._id, { quantity: 5 });
+    expect(status).toBe(200);
+    expect(body.meal.quantity).toBe(5);
+    expect(body.deduped).toBeUndefined();
+  });
+
+  it("treats different idempotencyKeys on the same meal as independent edits", async () => {
+    const { body: created } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const mealId = created.meal._id;
+
+    await patchMeal(mealId, { quantity: 2, idempotencyKey: "edit-key-a" });
+    const second = await patchMeal(mealId, { quantity: 4, idempotencyKey: "edit-key-b" });
+
+    expect(second.status).toBe(200);
+    expect(second.body.deduped).toBeUndefined();
+    expect(second.body.meal.quantity).toBe(4);
   });
 });
 

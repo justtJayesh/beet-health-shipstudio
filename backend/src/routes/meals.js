@@ -91,7 +91,12 @@ export function createMealsRouter({ index }) {
         return res.status(404).json({ error: "meal_not_found" });
       }
 
-      const { food, quantity, unit, mealType, loggedAt } = req.body ?? {};
+      const { food, quantity, unit, mealType, loggedAt, idempotencyKey } = req.body ?? {};
+
+      if (idempotencyKey && meal.idempotencyKey === idempotencyKey) {
+        return res.status(200).json({ meal, deduped: true });
+      }
+
       if (quantity != null && !Number.isFinite(Number(quantity))) {
         return res.status(400).json({ error: "invalid_quantity", message: "quantity must be a finite number" });
       }
@@ -116,6 +121,7 @@ export function createMealsRouter({ index }) {
 
       if (mealType) meal.mealType = mealType;
       if (loggedAt) meal.loggedAt = new Date(loggedAt);
+      if (idempotencyKey) meal.idempotencyKey = idempotencyKey;
 
       await meal.save();
       broadcast({ type: "meal_updated", meal });

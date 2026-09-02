@@ -45,10 +45,11 @@ npm test              # Vitest: unit + integration (spins up an in-memory Mongo,
   `food`/`quantity`/`unit` are missing. A repeated call with the same
   `idempotencyKey` returns `200` with `{meal, deduped: true}` instead of a
   duplicate.
-- `PATCH /api/meals/:id` — body is any subset of `{food, quantity, unit, mealType, loggedAt}`.
+- `PATCH /api/meals/:id` — body is any subset of `{food, quantity, unit, mealType, loggedAt, idempotencyKey?}`.
   Changing `food` and/or `quantity`/`unit` re-runs the same resolve-and-recompute
   path as logging. `404` if the meal doesn't exist (or isn't the default
-  user's). `422` on the same resolution failures as `POST`.
+  user's). `422` on the same resolution failures as `POST`. Accepts an optional `idempotencyKey`;
+  repeating the same key on the same meal returns `200 {meal, deduped: true}` instead of re-applying the edit.
 - `DELETE /api/meals/:id` — `200` with `{meal}` (the deleted document) or `404`.
 - `GET /api/meals?hours=<N>` or `?since=<ISO8601>` — lists meals for the
   default user, newest first. No query params returns everything.
