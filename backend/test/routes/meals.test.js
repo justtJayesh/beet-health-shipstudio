@@ -1,5 +1,5 @@
 // backend/test/routes/meals.test.js
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { createApp } from "../../src/server.js";
@@ -115,6 +115,41 @@ describe("POST /api/meals", () => {
     const count = await Meal.countDocuments({});
     expect(count).toBe(1);
   });
+
+  it("degrades gracefully when the idempotency pre-check misses but create hits the unique index (E11000 race)", async () => {
+    // Simulate the race directly: a doc with the key already exists (as if
+    // a concurrent request just landed it), but we force the pre-check's
+    // findOne to miss once, so the route falls through to Meal.create,
+    // which must then hit the duplicate-key error and recover gracefully.
+    const winner = await Meal.create({
+      userId: "default-user",
+      foodId: "roti",
+      name: "Roti",
+      quantity: 1,
+      unit: "piece",
+      grams: 40,
+      macros: { calories: 119, protein: 4.5, carbs: 23.2, fat: 1.5 },
+      mealType: "breakfast",
+      loggedAt: new Date(),
+      idempotencyKey: "race-key",
+    });
+
+    const spy = vi.spyOn(Meal, "findOne").mockImplementationOnce(() => Promise.resolve(null));
+    const { status, body } = await postMeal({
+      food: "roti",
+      quantity: 1,
+      unit: "piece",
+      idempotencyKey: "race-key",
+    });
+    spy.mockRestore();
+
+    expect(status).toBe(200);
+    expect(body.deduped).toBe(true);
+    expect(body.meal._id).toBe(String(winner._id));
+
+    const count = await Meal.countDocuments({});
+    expect(count).toBe(1);
+  });
 });
 
 describe("PATCH /api/meals/:id", () => {
@@ -161,6 +196,19 @@ describe("PATCH /api/meals/:id", () => {
       body: JSON.stringify({ quantity: 1 }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it("does not crash the server on a malformed id (Mongoose CastError)", async () => {
+    const res = await fetch(`${baseUrl}/api/meals/not-a-valid-id`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: 1 }),
+    });
+    expect(res.status).toBe(500);
+
+    // server must still be alive for subsequent requests
+    const health = await fetch(`${baseUrl}/api/meals`);
+    expect(health.status).toBe(200);
   });
 });
 
