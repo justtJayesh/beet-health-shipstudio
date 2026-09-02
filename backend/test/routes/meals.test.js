@@ -94,6 +94,35 @@ describe("POST /api/meals", () => {
     expect(status).toBe(400);
   });
 
+  it("rejects quantity: -5 with 400 (Mongoose ValidationError)", async () => {
+    const { status } = await postMeal({ food: "roti", quantity: -5, unit: "piece" });
+    expect(status).toBe(400);
+  });
+
+  it("rejects quantity: 'abc' with 400 before it can propagate as NaN", async () => {
+    const { status } = await postMeal({ food: "roti", quantity: "abc", unit: "piece" });
+    expect(status).toBe(400);
+  });
+
+  it("rejects mealType: 'brunch' with 400 (Mongoose ValidationError, enum)", async () => {
+    const { status } = await postMeal({
+      food: "roti",
+      quantity: 1,
+      unit: "piece",
+      mealType: "brunch",
+    });
+    expect(status).toBe(400);
+  });
+
+  it("rejects a malformed JSON body with 400", async () => {
+    const res = await fetch(`${baseUrl}/api/meals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not valid json",
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("deduplicates a retried log_meal call with the same idempotencyKey", async () => {
     const first = await postMeal({
       food: "roti",
@@ -198,17 +227,47 @@ describe("PATCH /api/meals/:id", () => {
     expect(res.status).toBe(404);
   });
 
-  it("does not crash the server on a malformed id (Mongoose CastError)", async () => {
+  it("does not crash the server on a malformed id (Mongoose CastError) and returns 404", async () => {
     const res = await fetch(`${baseUrl}/api/meals/not-a-valid-id`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity: 1 }),
     });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
 
     // server must still be alive for subsequent requests
     const health = await fetch(`${baseUrl}/api/meals`);
     expect(health.status).toBe(200);
+  });
+
+  it("rejects quantity: -5 with 400 (Mongoose ValidationError)", async () => {
+    const { body: logged } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const res = await fetch(`${baseUrl}/api/meals/${logged.meal._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: -5 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects mealType: 'brunch' with 400 (Mongoose ValidationError, enum)", async () => {
+    const { body: logged } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const res = await fetch(`${baseUrl}/api/meals/${logged.meal._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mealType: "brunch" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects quantity: 'abc' with 400 before it can propagate as NaN", async () => {
+    const { body: logged } = await postMeal({ food: "roti", quantity: 1, unit: "piece" });
+    const res = await fetch(`${baseUrl}/api/meals/${logged.meal._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: "abc" }),
+    });
+    expect(res.status).toBe(400);
   });
 });
 
@@ -246,5 +305,15 @@ describe("GET /api/meals", () => {
     const res = await fetch(`${baseUrl}/api/meals?hours=1`);
     const body = await res.json();
     expect(body.meals).toHaveLength(1);
+  });
+
+  it("rejects ?hours=abc with 400", async () => {
+    const res = await fetch(`${baseUrl}/api/meals?hours=abc`);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects ?since=garbage with 400", async () => {
+    const res = await fetch(`${baseUrl}/api/meals?since=garbage`);
+    expect(res.status).toBe(400);
   });
 });

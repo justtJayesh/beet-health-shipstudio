@@ -36,6 +36,9 @@ export function createMealsRouter({ index }) {
       if (!food || quantity == null || !unit) {
         return res.status(400).json({ error: "food, quantity, and unit are required" });
       }
+      if (!Number.isFinite(Number(quantity))) {
+        return res.status(400).json({ error: "invalid_quantity", message: "quantity must be a finite number" });
+      }
 
       if (idempotencyKey) {
         const existing = await Meal.findOne({ userId: DEFAULT_USER_ID, idempotencyKey });
@@ -89,6 +92,9 @@ export function createMealsRouter({ index }) {
       }
 
       const { food, quantity, unit, mealType, loggedAt } = req.body ?? {};
+      if (quantity != null && !Number.isFinite(Number(quantity))) {
+        return res.status(400).json({ error: "invalid_quantity", message: "quantity must be a finite number" });
+      }
       const isFieldEdit = food != null || quantity != null || unit != null;
 
       if (isFieldEdit) {
@@ -136,9 +142,17 @@ export function createMealsRouter({ index }) {
     try {
       const query = { userId: DEFAULT_USER_ID };
       if (req.query.since) {
-        query.loggedAt = { $gte: new Date(req.query.since) };
+        const since = new Date(req.query.since);
+        if (Number.isNaN(since.getTime())) {
+          return res.status(400).json({ error: "invalid_since", message: "since must be a valid ISO8601 date" });
+        }
+        query.loggedAt = { $gte: since };
       } else if (req.query.hours) {
-        const hoursAgo = new Date(Date.now() - Number(req.query.hours) * 60 * 60 * 1000);
+        const hours = Number(req.query.hours);
+        if (!Number.isFinite(hours)) {
+          return res.status(400).json({ error: "invalid_hours", message: "hours must be a finite number" });
+        }
+        const hoursAgo = new Date(Date.now() - hours * 60 * 60 * 1000);
         query.loggedAt = { $gte: hoursAgo };
       }
       const meals = await Meal.find(query).sort({ loggedAt: -1 });
