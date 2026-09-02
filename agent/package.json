@@ -1,0 +1,20 @@
+{
+  "name": "beet-voice-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node src/main.js dev",
+    "start": "node src/main.js start",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@livekit/agents": "^1.7.1",
+    "@livekit/rtc-node": "^0.13.34",
+    "dotenv": "^16.4.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.5"
+  }
+}
