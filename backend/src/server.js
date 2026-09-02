@@ -29,6 +29,21 @@ export function createApp({ index = buildFoodsIndex() } = {}) {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     console.error(err);
+
+    const status = err.status ?? err.statusCode;
+    if (status) {
+      return res.status(status).json({ error: "bad_request", message: err.message });
+    }
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ error: "validation_error", message: err.message });
+    }
+    if (err.name === "CastError") {
+      if (err.path === "_id") {
+        return res.status(404).json({ error: "meal_not_found", message: err.message });
+      }
+      return res.status(400).json({ error: "cast_error", message: err.message });
+    }
+
     res.status(500).json({ error: "internal_error" });
   });
 
@@ -42,13 +57,16 @@ async function main() {
     console.error("MONGO_URI is not set — copy .env.example to .env first.");
     process.exit(1);
   }
+  const app = createApp(); // triggers buildFoodsIndex() — fails fast on bad foods.json before touching Mongo
   await connectDB(mongoUri);
-  const app = createApp();
   app.listen(port, () => {
     console.log(`backend listening on :${port}`);
   });
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
 }
