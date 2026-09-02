@@ -43,4 +43,11 @@ describe("CORS", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBeTruthy();
   });
+
+  it("does not allow a different origin", async () => {
+    const res = await fetch(`${baseUrl}/api/meals`, {
+      headers: { Origin: "http://evil.example" },
+    });
+    expect(res.headers.get("access-control-allow-origin")).not.toBe("http://evil.example");
+  });
 });
