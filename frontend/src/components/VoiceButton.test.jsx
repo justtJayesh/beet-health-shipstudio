@@ -1,0 +1,63 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { VoiceButton } from "./VoiceButton.jsx";
+
+const mockSetMicrophoneEnabled = vi.fn();
+
+vi.mock("@livekit/components-react", () => ({
+  LiveKitRoom: ({ children, token, serverUrl }) => (
+    <div data-testid="livekit-room" data-token={token} data-url={serverUrl}>
+      {children}
+    </div>
+  ),
+  useLocalParticipant: () => ({
+    microphoneTrack: undefined,
+    localParticipant: { setMicrophoneEnabled: mockSetMicrophoneEnabled },
+  }),
+  BarVisualizer: () => <div data-testid="bar-visualizer" />,
+}));
+
+vi.mock("@livekit/components-styles", () => ({}));
+
+beforeEach(() => {
+  mockSetMicrophoneEnabled.mockClear();
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ token: "test-token", url: "wss://example.com", roomName: "beet-voice-session" }),
+  });
+});
+
+describe("VoiceButton", () => {
+  it("fetches a token and connects when clicked", async () => {
+    render(<VoiceButton />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/livekit-token"),
+      expect.objectContaining({ method: "POST" })
+    );
+    await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /stop talking to agent/i })).toBeInTheDocument();
+    expect(mockSetMicrophoneEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("disconnects and tears down the room when clicked again", async () => {
+    render(<VoiceButton />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+    await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /stop talking to agent/i }));
+
+    expect(screen.queryByTestId("livekit-room")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /talk to agent/i })).toBeInTheDocument();
+  });
+
+  it("shows an error message when the token fetch fails", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    render(<VoiceButton />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+
+    await waitFor(() => expect(screen.getByText(/failed/i)).toBeInTheDocument());
+    expect(screen.queryByTestId("livekit-room")).not.toBeInTheDocument();
+  });
+});
