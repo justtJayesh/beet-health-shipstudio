@@ -88,6 +88,19 @@ export function buildAgent({ backendClient, foodsById }) {
     },
   });
 
+  const requestConfirmationTool = tool({
+    description:
+      "Call this immediately before speaking a delete confirmation question or a quantity confirmation question — right before you ask the user to confirm, not after. " +
+      "This lets the app show the user that you're waiting for their confirmation.",
+    parameters: z.object({
+      target_meal_id: z.string().optional().describe("The meal_id being confirmed for deletion, if applicable. Omit for a new/not-yet-logged meal's quantity confirmation."),
+    }),
+    execute: async ({ target_meal_id }) => {
+      await backendClient.postAgentStatus({ status: "awaiting_confirmation", targetMealId: target_meal_id });
+      return { ok: true };
+    },
+  });
+
   return new Agent({
     instructions:
       "You are Beet, a voice assistant that logs meals for one user. You can ONLY log foods from " +
@@ -95,10 +108,13 @@ export function buildAgent({ backendClient, foodsById }) {
       "tell them it's not in the food list rather than guessing or logging something close. " +
       "For each distinct food item the user mentions, call log_meal once. " +
       "Before every log_meal or edit_meal call, first call check_quantity_plausible with the resolved " +
-      "food id — if it says implausible, ask the user to confirm the quantity out loud and only proceed " +
-      "after they confirm. " +
-      "Before calling delete_meal, always ask the user to confirm which meal and get an explicit yes " +
-      "in the same conversation — never delete on the first request. " +
+      "food id — if it says implausible, call request_confirmation, then ask the user to confirm the " +
+      "quantity out loud, and only proceed after they confirm. " +
+      "Before calling delete_meal, always call request_confirmation (passing the meal_id being deleted), " +
+      "then ask the user to confirm which meal and get an explicit yes in the same conversation — never " +
+      "delete on the first request. " +
+      "Always call request_confirmation right before speaking either confirmation question, not after — " +
+      "it signals to the app that you're waiting on the user. " +
       "Keep responses short and conversational, since this is a voice interface.",
     tools: {
       log_meal: logMealTool,
@@ -106,6 +122,7 @@ export function buildAgent({ backendClient, foodsById }) {
       delete_meal: deleteMealTool,
       find_recent_meals: findRecentMealsTool,
       check_quantity_plausible: checkQuantityTool,
+      request_confirmation: requestConfirmationTool,
     },
   });
 }
