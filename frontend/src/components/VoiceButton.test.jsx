@@ -52,6 +52,17 @@ describe("VoiceButton", () => {
     expect(screen.getByRole("button", { name: /talk to agent/i })).toBeInTheDocument();
   });
 
+  it("calls onDisconnect when disconnecting so stale agent status can be cleared", async () => {
+    const onDisconnect = vi.fn();
+    render(<VoiceButton onDisconnect={onDisconnect} />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+    await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /stop talking to agent/i }));
+
+    expect(onDisconnect).toHaveBeenCalledTimes(1);
+  });
+
   it("shows an error message when the token fetch fails", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     render(<VoiceButton />);

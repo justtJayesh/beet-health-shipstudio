@@ -16,13 +16,14 @@ function MicVisualizer() {
   return <BarVisualizer barCount={5} track={microphoneTrack?.track} />;
 }
 
-export function VoiceButton() {
+export function VoiceButton({ onDisconnect }) {
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState(null);
 
   const handleClick = useCallback(async () => {
     if (connection) {
       setConnection(null);
+      onDisconnect?.();
       return;
     }
 
@@ -37,7 +38,7 @@ export function VoiceButton() {
     } catch (err) {
       setError(err);
     }
-  }, [connection]);
+  }, [connection, onDisconnect]);
 
   return (
     <div className="voice-button">
