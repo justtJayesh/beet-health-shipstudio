@@ -107,6 +107,18 @@ export function buildAgent({ backendClient, foodsById }) {
     },
   });
 
+  const cancelConfirmationTool = tool({
+    description:
+      "Call this the moment the user declines or cancels a pending delete/quantity confirmation " +
+      "(e.g. says 'no', 'never mind', 'don't delete that') instead of confirming it. This tells the " +
+      "app the confirmation is no longer pending.",
+    parameters: z.object({}),
+    execute: async () => {
+      clearPendingConfirmation();
+      return { ok: true };
+    },
+  });
+
   const requestConfirmationTool = tool({
     description:
       "Call this immediately before speaking a delete confirmation question or a quantity confirmation question — right before you ask the user to confirm, not after. " +
@@ -137,6 +149,8 @@ export function buildAgent({ backendClient, foodsById }) {
       "delete on the first request. " +
       "Always call request_confirmation right before speaking either confirmation question, not after — " +
       "it signals to the app that you're waiting on the user. " +
+      "If the user declines or cancels a pending confirmation instead of confirming it, call " +
+      "cancel_confirmation right away so the app knows it's no longer waiting. " +
       "If a tool call fails or times out, tell the user something like \"I couldn't save that, please " +
       "try again in a second\" rather than proceeding as if it succeeded. " +
       "Keep responses short and conversational, since this is a voice interface.",
@@ -147,6 +161,7 @@ export function buildAgent({ backendClient, foodsById }) {
       find_recent_meals: findRecentMealsTool,
       check_quantity_plausible: checkQuantityTool,
       request_confirmation: requestConfirmationTool,
+      cancel_confirmation: cancelConfirmationTool,
     },
   });
 
