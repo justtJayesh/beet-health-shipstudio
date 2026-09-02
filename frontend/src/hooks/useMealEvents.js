@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001";
 
@@ -6,7 +6,6 @@ export function useMealEvents(hours = 48) {
   const [meals, setMeals] = useState([]);
   const [agentStatus, setAgentStatus] = useState(null);
   const [error, setError] = useState(null);
-  const sourceRef = useRef(null);
 
   const fetchMeals = useCallback(async () => {
     try {
@@ -24,7 +23,6 @@ export function useMealEvents(hours = 48) {
 
   useEffect(() => {
     const source = new EventSource(`${API_BASE_URL}/api/events`);
-    sourceRef.current = source;
 
     source.addEventListener("open", () => {
       fetchMeals();
@@ -35,6 +33,10 @@ export function useMealEvents(hours = 48) {
       try {
         payload = JSON.parse(event.data);
       } catch {
+        return;
+      }
+
+      if (payload.type !== "agent_status" && !payload.meal?._id) {
         return;
       }
 

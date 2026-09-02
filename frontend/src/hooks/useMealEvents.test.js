@@ -64,6 +64,32 @@ describe("useMealEvents", () => {
     expect(result.current.meals[0]._id).toBe("m3");
   });
 
+  it("ignores a meal_logged event for an already-fetched meal (no duplicate)", async () => {
+    const { result } = renderHook(() => useMealEvents());
+    act(() => MockEventSource.instances[0].emit("open", {}));
+    await waitFor(() => expect(result.current.meals).toHaveLength(2));
+
+    act(() => {
+      MockEventSource.instances[0].emit("message", { data: JSON.stringify({ type: "meal_logged", meal: meal1 }) });
+    });
+
+    expect(result.current.meals).toHaveLength(2);
+  });
+
+  it("ignores a malformed-but-parseable event with no meal field", async () => {
+    const { result } = renderHook(() => useMealEvents());
+    act(() => MockEventSource.instances[0].emit("open", {}));
+    await waitFor(() => expect(result.current.meals).toHaveLength(2));
+
+    expect(() => {
+      act(() => {
+        MockEventSource.instances[0].emit("message", { data: JSON.stringify({ type: "meal_updated" }) });
+      });
+    }).not.toThrow();
+
+    expect(result.current.meals).toHaveLength(2);
+  });
+
   it("replaces a meal on meal_updated", async () => {
     const { result } = renderHook(() => useMealEvents());
     act(() => MockEventSource.instances[0].emit("open", {}));
