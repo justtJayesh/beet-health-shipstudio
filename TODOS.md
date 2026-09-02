@@ -77,13 +77,89 @@ these are one-line rationales for quick scanning.
   Already named in the plan's own Open Questions as a README "what I'd do
   differently" item; not worth solving for this scope.
 
-## Not deferred — currently blocking (tracked in the plan, not here)
+## Resolved blockers (were tracked here as open, now closed)
 
-Two items are **not** on this list because they are not deferred work — they
-are open blockers that must be resolved before implementation, tracked in
-the plan file's "QUEUED USER CHALLENGES" and "Unresolved Decisions":
+1. `foods.json` — copied into the repo root (2026-09-02), verified 30 entries
+   matching the design doc's shape. No longer blocking.
+2. Decision #20 (agent status visibility) — resolved at the `/autoplan`
+   Final Gate to a plain-text status line + new `agent_status` SSE event.
+   Spec written into the plan doc. Implementation is Next Steps #2's job
+   (the LiveKit agent doesn't exist yet); the backend's SSE broadcast hub
+   (Task 5 of the backend-scaffold plan) already supports adding it with
+   zero changes — it broadcasts arbitrary event objects.
 
-1. `foods.json` is still not copied into the repository (flagged 3 times:
-   Phase 1, Phase 2.5, Phase 3).
-2. Decision #20 — whether the frontend surfaces LiveKit room/agent state —
-   remains unresolved since Phase 2.
+## From the backend-scaffold implementation (2026-09-02, branch feat/backend-scaffold)
+
+Deferred Minors from per-task reviews and the final whole-branch review —
+full reasoning lives in `.superpowers/sdd/2026-09-02-backend-scaffold/progress.md`
+before that workspace is deleted; one-line rationales here for quick scanning.
+
+- **`test/models/Meal.test.js` hardcodes `"default-user"`** instead of
+  importing `DEFAULT_USER_ID` from `constants.js` — cosmetic, low risk since
+  the value is unlikely to change.
+- **No test asserts required-field rejection** for `foodId`/`name`/`unit`/
+  `loggedAt`/`macros` sub-fields on the `Meal` schema — not requested by the
+  plan's test list, a coverage gap only if graded against full schema
+  validation.
+- **No test for the `foods.json` ENOENT fail-fast error message itself** —
+  low value since the real `foods.json` is committed and present.
+- **No test for the fuzzy threshold=2 path** (queries >5 chars) inside
+  `resolveFood` itself, or for 3+-candidate ambiguity — `fuzzyThreshold` is
+  unit-tested directly; the >5-char path through `resolveFood` isn't.
+- **`resolveMealFields`'s own test file doesn't directly trigger `ambiguous`**
+  — relies on `foodsResolver.js`'s own tests covering that outcome.
+- **No route-level test for the `ambiguous` outcome** on
+  `GET /api/foods/resolve` — covered at the `foodsResolver.js` unit level
+  instead.
+- **`smoke-test.sh`'s `_id`-extraction regex is loose** (could match an
+  empty string) but is guarded by a downstream non-empty check; no smoke-test
+  case for `ambiguous` or SSE streaming (out of the task's scope).
+- **SSE `broadcast()` doesn't guard `res.write`** on a dead client socket —
+  one dead connection can throw and abort delivery to every remaining
+  client, and since `broadcast` runs before the response is sent in all
+  three mutating handlers, that throw surfaces as an unexpected 500 on an
+  otherwise-successful write. Cheap fix (`try/catch` + drop the client) if
+  it ever gets exercised in practice.
+- **No SSE heartbeat or `retry:` hint** — an idle `/api/events` stream can
+  die to an intermediary connection timeout with no reconnect signal beyond
+  the client's own `EventSource` default. Trivial `setInterval` ping if
+  deployed behind a proxy that times out idle connections.
+- **No CORS configured anywhere in the backend.** Not needed yet (nothing
+  cross-origin exists), but the frontend (Next Steps #4) will very likely
+  run on a different origin/port than the backend, so `/api/events` and
+  every REST route will need a CORS policy before the frontend can call
+  them directly from a browser. Flagging now so it isn't discovered as a
+  surprise at frontend-integration time.
+- **`quantity: 0` is accepted** (schema has `min: 0`, not an exclusive
+  minimum) — produces a `201` with 0 grams and all-zero macros, which is a
+  meaningless meal entry. Distinct from the quantity *upper*-bound soft
+  confirm (Decision #37 / Next Steps #2, an agent-side spoken behavior) —
+  this is a lower-bound gap in the backend schema itself.
+- **`InvalidUnitError` doesn't carry the food's valid units** in its
+  response — a client that guesses an invalid unit has to make a second
+  `/api/foods/resolve` call to discover the valid ones. Cheap to attach to
+  the existing error response if it becomes a real friction point.
+- **`import.meta.url === \`file://${process.argv[1]}\`` direct-run check**
+  in `server.js` is fragile to paths containing spaces or non-ASCII
+  characters. `pathToFileURL(process.argv[1]).href` is the more robust
+  comparison; low priority since the deployment path is unlikely to hit
+  this edge case.
+- **Partial unique index on `{userId, idempotencyKey}` builds asynchronously**
+  under Mongoose's `autoIndex` — a `POST` in the first moments after boot
+  could theoretically land before the index finishes building, degrading
+  idempotency protection down to the route's own check-then-create pre-check
+  alone (which is still correct in the common case, just not backstopped by
+  the DB constraint for a brief window). Immaterial at this project's scale;
+  worth knowing if it's ever deployed with meaningful concurrent load
+  immediately at boot.
+- **`quantity: ""` (empty string) slips through the new finite-number guard**
+  as `Number("") === 0`, which is finite — so it's accepted as `quantity: 0`
+  rather than rejected as a missing/invalid value. Pre-existing gap, adjacent
+  to (but not the same as) the `quantity: 0` minimum-bound item above;
+  low priority, same fix would likely resolve both.
+- **Generic `bad_request` error code** used for the `err.status`/
+  `err.statusCode` branch in the error middleware (covers things like
+  malformed-JSON-body errors from body-parser) — no more specific code was
+  specified for this branch. Could be refined to a more granular code per
+  actual cause if the voice agent (Next Steps #2) needs to distinguish them,
+  but `message` already carries the specifics for now.
