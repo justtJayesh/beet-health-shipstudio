@@ -47,27 +47,32 @@ Reuses the already-open LiveKit room connection to push update events to the fro
 
 ### System sketch
 - **Backend (Node/Express + MongoDB):**
-  - `Meal` schema: `{ foodId, name, quantity, unit, grams, macros: {calories, protein, carbs, fat}, mealType, loggedAt, createdAt, updatedAt }`. `grams` is computed server-side from `quantity × gramsPerUnit`, where `gramsPerUnit` comes directly from the `units` array already present per food in `foods.json` — no separate conversion table needed.
-  - Foods lookup is a static in-memory module built from `foods.json` at boot — the single source of truth for resolution. Match order: exact name → alias table (hand-curated, authored alongside `foods.json` from its existing `aliases` field) → fuzzy fallback (`fastest-levenshtein`, distance ≤2) → no match. For a closed 30-item set this is intentionally lightweight — no fuzzy-search library needed. Unit validation only accepts units listed for that specific food.
-  - `GET /api/foods/resolve?q=<one food phrase>` — exposes the resolution logic to the agent so it never duplicates matching rules; the agent segments a multi-item utterance into per-food phrases itself and calls this once per phrase. Returns a matched food + valid units + gramsPerUnit, or `no_match`.
-  - Endpoints: `POST /api/meals` (log), `PATCH /api/meals/:id` (edit, by hard ID), `DELETE /api/meals/:id` (delete, by hard ID), `GET /api/meals` (list, supports recency/time-window query for agent disambiguation and for the frontend).
-  - Macro calculation always happens server-side from `macrosPer100g` × grams — the agent never invents numbers.
+  - `Meal` schema: `{ userId, foodId, name, quantity, unit, grams, macros: {calories, protein, carbs, fat}, mealType, loggedAt, createdAt, updatedAt }`. `userId` defaults to a hardcoded `DEFAULT_USER_ID` constant (single-fixed-user system) — every write and query is scoped by it, so the single-user assumption is explicit and enforced in the schema, not just implied. `grams` is computed server-side from `quantity × gramsPerUnit`, where `gramsPerUnit` comes directly from the `units` array already present per food in `foods.json` — no separate conversion table needed.
+  - Foods lookup is a static in-memory module built from `foods.json` at boot — the single source of truth for resolution. Match order: exact name → alias table (hand-curated, authored alongside `foods.json` from its existing `aliases` field) → fuzzy fallback (`fastest-levenshtein`, distance ≤2) → no match. Unit validation only accepts units listed for that specific food.
+  - `GET /api/foods/resolve?q=<one food phrase>` — exposes the resolution logic to the agent so it never duplicates matching rules; the agent segments a multi-item utterance into per-food phrases itself and calls this once per phrase. Returns one of three outcomes: a single match (food + valid units + gramsPerUnit), `ambiguous: [candidates]` (two+ fuzzy hits within distance ≤2), or `no_match`. The agent asks a clarifying question on both `ambiguous` and `no_match`.
+  - Endpoints: `POST /api/meals` (log), `PATCH /api/meals/:id` (edit, by hard ID), `DELETE /api/meals/:id` (delete, by hard ID), `GET /api/meals` (list, supports recency/time-window query for agent disambiguation and for the frontend). All scoped to `DEFAULT_USER_ID`.
+  - Macro calculation always happens server-side from `macrosPer100g` × grams — the agent never invents numbers. The resolve-and-recompute logic is a single shared internal function called by both the log path and the edit path (see edit_meal below) — no duplicated macro math.
   - Mutation broadcast over Server-Sent Events (SSE): one-directional backend→frontend push, no handshake protocol, built-in reconnect via `EventSource`, simpler than WebSocket for this use case. Event payload: `{type: "meal_logged"|"meal_updated"|"meal_deleted", meal}`.
 - **LiveKit Agent (Python, LiveKit Agents SDK):**
   - Tools exposed to the LLM: `log_meal(food, quantity, unit, meal_type)`, `find_recent_meals(time_window)` (resolves a spoken reference like "the chai I logged this morning" to a specific meal ID — this is the *only* resolution tool), `edit_meal(id, changes)`, `delete_meal(id)` (both take a hard ID already resolved by `find_recent_meals`).
   - Multi-item utterances ("two rotis and a katori of dal") are segmented by the agent into one food phrase per item, each resolved and logged as a separate `log_meal` call — not a single batched call.
-  - Food/unit resolution always goes through `/api/foods/resolve` — the agent has no local copy of the matching logic. No match → agent asks a clarifying question, never logs outside the 30 foods. Unstated or invalid unit → agent asks; backend never guesses a unit.
+  - Food/unit resolution always goes through `/api/foods/resolve` — the agent has no local copy of the matching logic. No match or ambiguous match → agent asks a clarifying question, never logs outside the 30 foods or guesses between candidates. Unstated or invalid unit, or unstated quantity → agent asks; backend never guesses a unit or defaults a quantity to "1".
+  - `edit_meal(id, changes)` allows editing any field including the food itself — a food-swapping edit ("actually that was dal not rajma") re-runs the same shared resolve-and-recompute function `log_meal` uses, so there's one resolution/macro-calc path, not two.
   - `mealType` is inferred from server local time-of-day by default (single-user system, no per-user timezone needed); the agent only asks when the time falls near a meal-boundary ambiguity (e.g. 11am, could be late breakfast or early lunch).
   - `find_recent_meals` returning zero matches → agent reports "no matching recent meal found" and asks the user to clarify (different food, different time window) rather than failing silently.
-  - Deletes require a spoken read-back confirmation ("delete the chai you logged at 8am — confirm?") before `delete_meal` executes — ASR mishears make a silent delete a real data-loss risk.
+  - Deletes require a spoken read-back confirmation ("delete the chai you logged at 8am — confirm?") before `delete_meal` executes — ASR mishears make a silent delete a real data-loss risk. Edits proceed without read-back confirmation by design — reversible, unlike deletes.
   - Unintelligible speech or silence → agent asks again, no tool call issued. If the LiveKit room drops mid-confirmation (e.g. mid-delete), no partial writes occur — the tool call only fires after an explicit confirmed turn.
+  - Every tool call that hits the backend is wrapped in error handling: on a failed/timed-out request (backend down, DB connection blip), the agent tells the user "couldn't save that, try again in a second" rather than proceeding as if the write succeeded or silently swallowing the failure.
   - System prompt constrains the agent to the 3 features only, and to always confirm ambiguous quantity/unit before writing.
-- **Frontend (React):** single page, meal list grouped by day/mealType, subscribes to the SSE stream for live updates; on disconnect, `EventSource` auto-reconnects, and a fetch-on-load covers the initial page state. No design polish required.
+- **Frontend (React):** single page, meal list grouped by day/mealType, subscribes to the SSE stream for live updates; on disconnect, `EventSource` auto-reconnects, and a fetch-on-load re-runs on every reconnect (not just initial mount) to close any gap from events missed during the outage window. No design polish required.
 
 ## Open Questions
 - Exact ASR/LLM/TTS model choices within LiveKit Inference — deferred to implementation, default to LiveKit's recommended low-latency stack unless a specific need surfaces.
 - Whether `find_recent_meals` disambiguation needs a "did you mean X or Y" spoken loop for genuinely ambiguous references, or whether "most recent match" is an acceptable default — will decide during build based on how often it's actually ambiguous with 30 foods.
 - Deployment target for the "plus one" deliverable (demo video vs. deployed URL) — user's choice, not yet made.
+- Multi-item utterance segmentation ("two rotis and a katori of dal" → two `log_meal` calls) has no explicit spec for how the agent splits phrases or what happens if it misses an item — left to the LLM's own judgment during build rather than designed upfront (outside-voice flag, accepted as a build-time risk).
+- LiveKit free tier usage during 3 days of iterative voice testing — trusting the assignment doc's "comfortably more than this assignment needs" claim; watch usage during heavy iteration days and fall back to LiveKit's text/playground mode (no ASR/TTS calls) if it gets tight.
+- Server local time for `mealType` inference assumes server TZ ≈ user TZ — fine for local dev/single-user demo; if deployed to a cloud region, breakfast/lunch/dinner boundaries could silently misclassify. Not worth solving for a single-user assignment, noted for the README's "what I'd do differently."
 
 ## Success Criteria
 - All 3 features (log, edit, delete) work end-to-end via real speech, not just text simulation.
@@ -80,22 +85,96 @@ Reuses the already-open LiveKit room connection to push update events to the fro
 ## Distribution Plan
 Web service — GitHub repo is the primary submission artifact. Deploy target (Vercel/Render for frontend+backend, LiveKit Cloud free tier for the agent) or demo video is the "plus one" — decided post-build based on time remaining.
 
+## Test Stack
+Vitest for both the Node/Express backend (unit + integration) and the React frontend (component tests); pytest for the Python LiveKit agent. Both are Layer-1 defaults for their runtime — no new tooling class introduced.
+
 ## Next Steps
-1. Scaffold backend: Mongo schema, foods.json loader with alias/unit resolution, REST endpoints, SSE broadcast — test this layer standalone (curl/Postman) before touching voice.
-2. Scaffold LiveKit agent: tool definitions wired to the backend, system prompt constraining scope, test via LiveKit's text/playground mode before real voice.
-3. Build the React frontend: meal list + SSE subscription.
-4. Write tests: unit tests for food resolution and macro calc (the correctness-critical path), integration tests for the REST API, a manual voice test script covering log/edit/delete + at least one unmatched-food and one ambiguous-edit case.
-5. Write README (setup, architecture, decisions, known gaps) and record demo video or deploy.
+1. Scaffold backend: Mongo schema (with `userId`/`DEFAULT_USER_ID`), foods.json loader with alias/fuzzy/ambiguous resolution, REST endpoints, SSE broadcast — test this layer standalone (curl/Postman + Vitest) before touching voice.
+2. Scaffold LiveKit agent: tool definitions wired to the backend (with tool-call error handling), system prompt constraining scope, test via LiveKit's text/playground mode before real voice.
+3. **Voice pipeline design pass (dedicated time, not deferred):** this is the genuinely novel part of the stack per the assignment's own framing. Explicitly test and tune turn-taking, barge-in behavior (especially during the delete read-back confirmation — the highest-risk interaction), and latency across chained tool calls (segment → resolve → confirm) before considering the agent "done." Budget real time here, not an afterthought after CRUD is working.
+4. Build the React frontend: meal list + SSE subscription with reconnect-triggered refetch.
+5. Write tests per the coverage diagram below — unit tests for food resolution (including ambiguous/no-match/fuzzy-collision cases) and macro calc, integration tests for the REST API, a manual voice test script covering log/edit/delete with priority on the delete-confirmation flow (highest-risk interaction), plus at least one unmatched-food and one ambiguous-match case. Note: the `[→E2E]` paths in the coverage diagram below are manual/LiveKit-playground tests, not Vitest/pytest-automated — live audio interaction isn't unit-testable, and the plan doesn't pretend otherwise.
+6. Write README (setup, architecture, decisions, known gaps) and record demo video or deploy.
 
 ## Reviewer Concerns
-Surfaced in round 3 of adversarial review (score 8/10, all 9 prior-round issues confirmed fixed). Left as build-time decisions rather than looped on further:
-1. `/api/foods/resolve` needs a third outcome (`ambiguous: [candidates]`) alongside match/no_match, for fuzzy matches that hit two foods.
-2. `edit_meal` scope is unstated — decide now: edits touch quantity/unit/mealType only; changing the food itself is delete+re-log.
-3. Missing quantity ("I had chai") should trigger a clarifying question, same as missing/invalid unit — no silent default of "1".
-4. SSE reconnect gap-filling is unspecified — either make fetch-on-load re-run on every reconnect (not just initial mount), or explicitly accept "may miss events during an outage window" as a known limitation.
-5. `edit_meal` has no read-back confirmation while `delete_meal` does — state this asymmetry as deliberate (edits reversible, deletes aren't).
-6. Levenshtein ≤2 on short aliases (3-6 chars) risks false-positive collisions between distinct foods — sanity-check the threshold against the real 30-food alias list during build; consider a length-aware threshold.
-7. The delete-confirmation flow is the most stateful, highest-risk-of-silent-failure interaction in the design — give it explicit priority in the manual voice test pass (Next Steps #4).
+Surfaced in round 3 of /office-hours adversarial review (score 8/10). Resolved during /plan-eng-review unless noted:
+1. ~~`/api/foods/resolve` needs a third outcome (`ambiguous`)~~ — **Resolved:** added, agent asks on ambiguous match.
+2. ~~`edit_meal` scope unstated~~ — **Resolved:** full field edit allowed including food swap, shares resolve/recompute logic with `log_meal`.
+3. ~~Missing quantity should trigger a clarifying question~~ — **Resolved:** stated explicitly, no silent default.
+4. ~~SSE reconnect gap-filling unspecified~~ — **Resolved:** fetch-on-load re-runs on every reconnect.
+5. ~~`edit_meal`/`delete_meal` confirmation asymmetry~~ — **Resolved:** stated as deliberate (edits reversible, deletes aren't).
+6. **Still open:** Levenshtein ≤2 on short aliases (3-6 chars) risks false-positive collisions — sanity-check the threshold against the real 30-food alias list during build; consider a length-aware threshold.
+7. **Still open:** the delete-confirmation flow is the most stateful, highest-risk-of-silent-failure interaction in the design — give it explicit priority in the manual voice test pass.
+
+## Eng Review Additions
+Surfaced and resolved during /plan-eng-review:
+1. **Architecture:** No user-identity concept in the schema — added `userId` scoped to a hardcoded `DEFAULT_USER_ID` constant on the `Meal` schema and all queries, so the single-user assumption is explicit rather than implicit.
+2. **Architecture:** No failure mode for backend downtime mid-conversation — every agent tool call is now wrapped in error handling; on failure the agent tells the user to retry rather than proceeding silently.
+3. **Code Quality:** `fastest-levenshtein` dependency deliberately kept (not simplified to substring match) — handles genuine ASR mishears ("roati" vs "roti") that a substring check would miss; small dependency, low risk, justified by a real failure mode rather than hypothetical scale.
+
+## Test Coverage Diagram
+Nothing is built yet — every path below is a GAP by definition. This is the coverage target for implementation, not a report of existing tests.
+
+```
+CODE PATHS                                                  USER FLOWS
+[+] services/foodsResolver (Vitest)                         [+] Log a meal (voice → screen)
+  ├── [GAP] exact name match                                  ├── [GAP] [→E2E] Full voice round trip:
+  ├── [GAP] alias table match                                 │         speak → tool call → DB write → SSE → UI
+  ├── [GAP] fuzzy match (distance ≤2)                         ├── [GAP]        Multi-item utterance
+  ├── [GAP] ambiguous match (2+ fuzzy hits)                   │         ("two rotis and a katori of dal")
+  ├── [GAP] no match                                          ├── [GAP]        Unmatched food → clarify, not logged
+  ├── [GAP] fuzzy false-positive on short alias (Reviewer     ├── [GAP]        Missing unit → agent asks
+  │         Concern #6 — needs real alias-list check)         └── [GAP]        Missing quantity → agent asks
+  └── [GAP] unit validation (valid/invalid per food)
+                                                              [+] Edit a meal
+[+] services/mealMacros (shared log+edit path, Vitest)         ├── [GAP] Quantity/unit/mealType change
+  ├── [GAP] grams = quantity × gramsPerUnit                   └── [GAP] Food swap (re-resolve + recompute)
+  └── [GAP] macros = macrosPer100g × grams / 100
+                                                              [+] Delete a meal
+[+] routes/meals.js (Vitest integration)                       ├── [GAP] [→E2E] Confirm → delete (highest-risk
+  ├── [GAP] POST /api/meals (log, scoped to userId)            │         flow per Reviewer Concern #7)
+  ├── [GAP] PATCH /api/meals/:id (edit, incl. food swap)       └── [GAP]        User declines confirmation
+  ├── [GAP] DELETE /api/meals/:id
+  ├── [GAP] GET /api/meals (list + recency query)             [+] Backend failure mid-conversation
+  └── [GAP] GET /api/foods/resolve (match/ambiguous/no_match)   └── [GAP]        Tool call fails → agent tells
+                                                                          user to retry, no silent write
+[+] sse/broadcast.js (Vitest)
+  ├── [GAP] emits on log/edit/delete                          [+] Frontend live reflection
+  └── [GAP] reconnect → fetch-on-load re-run                    ├── [GAP] Meal appears without manual refresh
+                                                                └── [GAP] [→E2E] Reconnect after dropped SSE
+[+] agent/tools.py (pytest)                                             re-fetches and shows any missed events
+  ├── [GAP] log_meal — segments multi-item utterance
+  ├── [GAP] find_recent_meals — resolves NL reference to ID
+  ├── [GAP] find_recent_meals — zero matches → clarify
+  ├── [GAP] edit_meal — full field edit incl. food
+  ├── [GAP] delete_meal — requires confirmed turn first
+  └── [GAP] tool call failure → spoken retry message, no partial write
+
+COVERAGE: 0/30 paths tested (0% — pre-implementation baseline)
+GAPS: 30 (2 E2E-flagged: full voice round trip, delete-confirmation flow)
+```
+
+Every GAP above becomes a written test during implementation (Next Steps #4) — none are deferred as follow-up work. The two `[→E2E]` paths (full voice round trip, delete confirmation) get priority per Reviewer Concern #7.
+
+### Test Plan Artifact
+Written to `~/.gstack/projects/beet-health-shipstudio/jayeshmate-main-eng-review-test-plan-20260902.md` for `/qa`/`/qa-only` to consume once a running instance exists.
+
+## Performance Review
+- **N+1 / query patterns:** `find_recent_meals` and `GET /api/meals` both filter by `userId` + recency window on a single collection — no joins, no N+1 risk at this scale (single user, handful of meals per day).
+- **Memory:** `foods.json` (30 entries) loaded once at boot into an in-memory map — negligible, no concern.
+- **Caching:** Not needed — read volume is one user's page loads; premature at this scale.
+- **Slow paths:** None identified. The only latency that matters is the voice pipeline itself (STT/LLM/TTS), which is LiveKit-managed and already called out as out-of-doc-control in Success Criteria.
+No issues found — this system's scale (single user, 30 foods, a few meals/day) doesn't warrant any performance work beyond correct indexing (`userId` + `loggedAt` compound index on `Meal`, worth stating explicitly for the `GET /api/meals` recency query).
+
+## NOT in scope
+- Multi-user auth/accounts — explicitly deferred per Premise 5 (single fixed user).
+- Meal planning, nutrition targets/goals, historical analytics/charts — outside the 3-feature scope (log/edit/delete).
+- Deployment CI/CD pipeline — this is a web service submitted as a GitHub repo; deploy-or-video choice deferred to post-build (Distribution Plan).
+- Rate limiting / abuse protection on the API — single fixed user, not internet-facing by default; would matter if deployed publicly, noted as a gap for the README's "what I'd do differently" section.
+- Fuzzy-match threshold tuning beyond distance ≤2 — Reviewer Concern #6 flags this as a build-time sanity check against the real alias list, not a pre-emptive redesign.
+
+## What already exists
+Nothing — this is a fresh repository (`git init` run this session, only `CLAUDE.md` and this design doc committed so far). No existing code to reuse; `foods.json` (assignment-provided) is the only pre-existing asset, and it's already the design's single source of nutrition truth rather than being reimplemented.
 
 ## What I noticed about how you think
 - You explicitly separated "understand the product" from "prepare the submission plan" — asking to defer deadline/submission logistics until the architecture itself was settled. That ordering (problem before packaging) is the right instinct on a graded assignment that says "we're not testing whether you can type code."
