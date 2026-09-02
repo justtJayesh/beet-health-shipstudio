@@ -1,26 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { VoiceButton } from "./VoiceButton.jsx";
 
-const mockSetMicrophoneEnabled = vi.fn();
+let capturedOnMediaDeviceFailure;
 
 vi.mock("@livekit/components-react", () => ({
-  LiveKitRoom: ({ children, token, serverUrl }) => (
-    <div data-testid="livekit-room" data-token={token} data-url={serverUrl}>
-      {children}
-    </div>
-  ),
-  useLocalParticipant: () => ({
-    microphoneTrack: undefined,
-    localParticipant: { setMicrophoneEnabled: mockSetMicrophoneEnabled },
-  }),
+  LiveKitRoom: ({ children, token, serverUrl, onMediaDeviceFailure }) => {
+    capturedOnMediaDeviceFailure = onMediaDeviceFailure;
+    return (
+      <div data-testid="livekit-room" data-token={token} data-url={serverUrl}>
+        {children}
+      </div>
+    );
+  },
+  useLocalParticipant: () => ({ microphoneTrack: undefined }),
   BarVisualizer: () => <div data-testid="bar-visualizer" />,
+}));
+
+vi.mock("livekit-client", () => ({
+  MediaDeviceFailure: { PermissionDenied: "PermissionDenied", NotFound: "NotFound", DeviceInUse: "DeviceInUse", Other: "Other" },
 }));
 
 vi.mock("@livekit/components-styles", () => ({}));
 
 beforeEach(() => {
-  mockSetMicrophoneEnabled.mockClear();
+  capturedOnMediaDeviceFailure = undefined;
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ token: "test-token", url: "wss://example.com", roomName: "beet-voice-session" }),
@@ -38,7 +42,6 @@ describe("VoiceButton", () => {
     );
     await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /stop talking to agent/i })).toBeInTheDocument();
-    expect(mockSetMicrophoneEnabled).toHaveBeenCalledWith(true);
   });
 
   it("disconnects and tears down the room when clicked again", async () => {
@@ -70,5 +73,18 @@ describe("VoiceButton", () => {
 
     await waitFor(() => expect(screen.getByText(/failed/i)).toBeInTheDocument());
     expect(screen.queryByTestId("livekit-room")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a clear message and disconnects when the mic permission is denied", async () => {
+    const onDisconnect = vi.fn();
+    render(<VoiceButton onDisconnect={onDisconnect} />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+    await waitFor(() => expect(screen.getByTestId("livekit-room")).toBeInTheDocument());
+
+    act(() => capturedOnMediaDeviceFailure("PermissionDenied"));
+
+    expect(screen.getByText(/microphone permission denied/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("livekit-room")).not.toBeInTheDocument();
+    expect(onDisconnect).toHaveBeenCalledTimes(1);
   });
 });
