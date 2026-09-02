@@ -131,6 +131,23 @@ describe("useMealEvents", () => {
     expect(result.current.meals).toHaveLength(2);
   });
 
+  it("clears agentStatus via clearAgentStatus", async () => {
+    const { result } = renderHook(() => useMealEvents());
+    act(() => MockEventSource.instances[0].emit("open", {}));
+    await waitFor(() => expect(result.current.meals).toHaveLength(2));
+
+    act(() => {
+      MockEventSource.instances[0].emit("message", {
+        data: JSON.stringify({ type: "agent_status", status: "listening" }),
+      });
+    });
+    expect(result.current.agentStatus).toEqual({ status: "listening", targetMealId: null });
+
+    act(() => result.current.clearAgentStatus());
+
+    expect(result.current.agentStatus).toBeNull();
+  });
+
   it("refetches on a second open event (reconnect)", async () => {
     const { result } = renderHook(() => useMealEvents());
     act(() => MockEventSource.instances[0].emit("open", {}));

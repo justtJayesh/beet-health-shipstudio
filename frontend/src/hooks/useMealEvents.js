@@ -56,5 +56,7 @@ export function useMealEvents(hours = 48) {
     };
   }, [fetchMeals]);
 
-  return { meals, agentStatus, error, retry: fetchMeals };
+  const clearAgentStatus = useCallback(() => setAgentStatus(null), []);
+
+  return { meals, agentStatus, error, retry: fetchMeals, clearAgentStatus };
 }
