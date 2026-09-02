@@ -1,0 +1,109 @@
+:root {
+  --color-canvas: #ffffff;
+  --color-ink: #212121;
+  --color-near-black: #17171c;
+  --color-hairline: #d9d9dd;
+  --color-muted: #75758a;
+  --color-error: #b30000;
+  --radius-xs: 4px;
+  --font-body: "Unica77 Cohere Web", "Inter", system-ui, sans-serif;
+  --font-mono: "CohereMono", "Arial", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.app-title {
+  color: var(--color-near-black);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.32px;
+  margin: 0 0 8px;
+}
+
+.status-line {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.28px;
+  color: var(--color-muted);
+  margin: 0 0 24px;
+}
+
+.meal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.meal-row.highlighted {
+  background: #fff8f6;
+}
+
+.meal-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meal-row-name {
+  font-weight: 500;
+}
+
+.meal-row-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.meal-row-macros {
+  font-size: 14px;
+  color: var(--color-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.empty-state {
+  color: var(--color-muted);
+  padding: 32px 0;
+  text-align: center;
+}
+
+.retry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-xs);
+  color: var(--color-error);
+  margin-bottom: 16px;
+}
+
+.retry-banner button {
+  background: transparent;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-xs);
+  color: var(--color-error);
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}

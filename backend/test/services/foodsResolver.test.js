@@ -110,6 +110,29 @@ describe("resolveFood", () => {
     expect(result.matchType).toBe("fuzzy");
   });
 
+  it("documents the accepted false-positive risk on short aliases: an unrelated word one edit " +
+    "from a <=5-char alias still resolves (distance-1 threshold, Decision in backend-scaffold plan)", () => {
+    // "silk" is an unrelated word, but it's a single substitution away from the
+    // "milk" alias (4 chars, threshold 1) — this is the known, accepted tradeoff
+    // of the length-aware threshold, not a bug. Locked down so a future
+    // threshold change surfaces here instead of silently changing behavior.
+    const foodsWithMilk = [
+      ...sampleFoods,
+      {
+        id: "milk",
+        name: "Milk",
+        aliases: ["milk"],
+        macrosPer100g: { calories: 42, protein: 3.4, carbs: 5.0, fat: 1.0 },
+        units: [{ name: "glass", grams: 200 }],
+      },
+    ];
+    const milkIndex = buildFoodsIndex(foodsWithMilk);
+    const result = resolveFood("silk", milkIndex);
+    expect(result.outcome).toBe("match");
+    expect(result.food.id).toBe("milk");
+    expect(result.matchType).toBe("fuzzy");
+  });
+
   it("returns no_match for a food outside the closed 30-food set", () => {
     const result = resolveFood("pizza", index);
     expect(result).toEqual({ outcome: "no_match" });
