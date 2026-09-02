@@ -163,3 +163,17 @@ before that workspace is deleted; one-line rationales here for quick scanning.
   specified for this branch. Could be refined to a more granular code per
   actual cause if the voice agent (Next Steps #2) needs to distinguish them,
   but `message` already carries the specifics for now.
+
+## From the LiveKit agent implementation (2026-09-02)
+
+- **Design doc's Test Stack section says pytest for a Python agent** — the
+  agent was built in Node.js instead (design doc left language open; Node
+  matches the backend's runtime and reuses its Vitest stack). The design
+  doc's Test Stack line is now stale; corrected via the LiveKit agent design
+  spec (`docs/superpowers/specs/2026-09-02-livekit-voice-agent-design.md`),
+  not fixed in the original design doc itself to avoid rewriting review
+  history that was written against the Python assumption.
+- **STT/LLM/TTS model choice** (`stt: "auto"`, `llm: "openai/gpt-4o-mini"`,
+  `tts: "cartesia/sonic-2"` in `agent/src/main.js`) — placeholder defaults,
+  per the design doc's own Open Questions ("deferred to implementation").
+  Swap during real voice testing if these sound wrong.
