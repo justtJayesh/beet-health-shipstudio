@@ -8,9 +8,15 @@ import { loadFoodsById } from "./quantityGuard.js";
 
 // Maps the SDK's own agent-state lifecycle onto our agent_status SSE event.
 // "awaiting_confirmation" is NOT one of the SDK's native states (listening/
-// thinking/speaking/idle/initializing) — the agent posts that one explicitly
-// itself, right before speaking a delete or quantity confirmation question,
-// via backendClient.postAgentStatus directly (see agent.js's tool prompts).
+// thinking/speaking/idle/initializing). main.js is the SOLE writer of
+// agent_status: while agent.js's confirmationState reports a confirmation is
+// pending (set by request_confirmation's execute, cleared the moment
+// log_meal/edit_meal/delete_meal actually runs), every state change is
+// reported as awaiting_confirmation instead of the SDK's native state — this
+// keeps it on screen through both "asking the question" (speaking) and
+// "waiting for the answer" (listening), per Decision #43. See Fix 1 in the
+// final review: request_confirmation used to post agent_status itself,
+// racing with this handler and losing within milliseconds.
 const STATE_MAP = {
   listening: "listening",
   thinking: "thinking",
@@ -23,7 +29,7 @@ export default defineAgent({
 
     const backendClient = createBackendClient();
     const foodsById = loadFoodsById();
-    const agent = buildAgent({ backendClient, foodsById });
+    const { agent, confirmationState } = buildAgent({ backendClient, foodsById });
 
     const session = new AgentSession({
       stt: "auto",
@@ -33,12 +39,14 @@ export default defineAgent({
     });
 
     session.on(AgentSessionEventTypes.AgentStateChanged, (event) => {
-      const status = STATE_MAP[event.newState];
-      if (status) {
-        backendClient.postAgentStatus({ status }).catch((err) => {
-          console.error("Failed to post agent_status:", err.message);
-        });
-      }
+      const status = confirmationState.pending
+        ? "awaiting_confirmation"
+        : STATE_MAP[event.newState];
+      if (!status) return;
+      const targetMealId = confirmationState.pending ? confirmationState.pendingTargetMealId : undefined;
+      backendClient.postAgentStatus({ status, targetMealId }).catch((err) => {
+        console.error("Failed to post agent_status:", err.message);
+      });
     });
 
     await session.start({ agent, room: ctx.room });

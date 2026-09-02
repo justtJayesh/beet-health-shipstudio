@@ -1,7 +1,7 @@
 // agent/src/agent.js
 import { Agent, tool } from "@livekit/agents";
 import { z } from "zod";
-import { isImplausible } from "./quantityGuard.js";
+import { isImplausible, findFoodByPhrase } from "./quantityGuard.js";
 
 function foodNamesList(foodsById) {
   return Array.from(foodsById.values())
@@ -9,7 +9,19 @@ function foodNamesList(foodsById) {
     .join(", ");
 }
 
+// buildAgent returns { agent, confirmationState } — confirmationState is the
+// single shared mutable object main.js reads to decide whether to report
+// "awaiting_confirmation" instead of the SDK's native state. See Fix 1 in
+// the final review: request_confirmation used to post agent_status itself,
+// racing with main.js's own AgentStateChanged-driven posts and losing.
 export function buildAgent({ backendClient, foodsById }) {
+  const confirmationState = { pendingTargetMealId: undefined, pending: false };
+
+  function clearPendingConfirmation() {
+    confirmationState.pending = false;
+    confirmationState.pendingTargetMealId = undefined;
+  }
+
   const logMealTool = tool({
     description:
       "Log one food item the user says they ate. Call this once per distinct food item — " +
@@ -21,6 +33,7 @@ export function buildAgent({ backendClient, foodsById }) {
       mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]).optional(),
     }),
     execute: async ({ food, quantity, unit, mealType }) => {
+      clearPendingConfirmation();
       const result = await backendClient.logMeal({ food, quantity, unit, mealType });
       return result.body;
     },
@@ -37,6 +50,7 @@ export function buildAgent({ backendClient, foodsById }) {
       loggedAt: z.string().optional().describe("ISO8601 timestamp"),
     }),
     execute: async ({ meal_id, food, quantity, unit, mealType, loggedAt }) => {
+      clearPendingConfirmation();
       const result = await backendClient.editMeal(meal_id, { food, quantity, unit, mealType, loggedAt });
       return result.body;
     },
@@ -49,6 +63,7 @@ export function buildAgent({ backendClient, foodsById }) {
       "never call it on the first mention of wanting to delete something.",
     parameters: z.object({ meal_id: z.string() }),
     execute: async ({ meal_id }) => {
+      clearPendingConfirmation();
       const result = await backendClient.deleteMeal(meal_id);
       return result.body;
     },
@@ -67,23 +82,27 @@ export function buildAgent({ backendClient, foodsById }) {
 
   const checkQuantityTool = tool({
     description:
-      "Before calling log_meal or edit_meal, call this with the resolved food id, quantity, and unit " +
+      "Before calling log_meal or edit_meal, call this with the spoken food phrase, quantity, and unit " +
       "to check whether the quantity looks like a misheard/implausible amount that needs the user's " +
       "confirmation before logging. If it returns implausible=true, ask the user to confirm the amount " +
-      "out loud before calling log_meal/edit_meal.",
+      "out loud before calling log_meal/edit_meal. If it returns implausible=null, the food phrase " +
+      "wasn't recognized by this check — proceed to log_meal/edit_meal anyway, since that call's own " +
+      "food resolution will handle an unrecognized food correctly.",
     parameters: z.object({
-      food_id: z.string().describe("The resolved food id, e.g. \"roti\" — not the spoken phrase"),
+      food: z.string().describe("The food name or alias as the user said it, e.g. \"roti\""),
       quantity: z.number(),
       unit: z.string(),
     }),
-    execute: async ({ food_id, quantity, unit }) => {
+    execute: async ({ food, quantity, unit }) => {
+      const resolved = findFoodByPhrase(food, foodsById);
+      if (!resolved) {
+        return { implausible: null, reason: "unrecognized_food" };
+      }
       try {
-        const implausible = isImplausible({ foodId: food_id, quantity, unit, foodsById });
+        const implausible = isImplausible({ foodId: resolved.id, quantity, unit, foodsById });
         return { implausible };
-      } catch {
-        // Unknown food/unit at this stage just means "let log_meal's own
-        // resolution handle it" — not this tool's job to validate existence.
-        return { implausible: false };
+      } catch (err) {
+        return { implausible: null, reason: err.message };
       }
     },
   });
@@ -91,30 +110,35 @@ export function buildAgent({ backendClient, foodsById }) {
   const requestConfirmationTool = tool({
     description:
       "Call this immediately before speaking a delete confirmation question or a quantity confirmation question — right before you ask the user to confirm, not after. " +
-      "This lets the app show the user that you're waiting for their confirmation.",
+      "This lets the app show the user that you're waiting for their confirmation. " +
+      "The app itself reports the awaiting_confirmation status to the backend; you don't need to do anything else.",
     parameters: z.object({
       target_meal_id: z.string().optional().describe("The meal_id being confirmed for deletion, if applicable. Omit for a new/not-yet-logged meal's quantity confirmation."),
     }),
     execute: async ({ target_meal_id }) => {
-      await backendClient.postAgentStatus({ status: "awaiting_confirmation", targetMealId: target_meal_id });
+      confirmationState.pending = true;
+      confirmationState.pendingTargetMealId = target_meal_id;
       return { ok: true };
     },
   });
 
-  return new Agent({
+  const agent = new Agent({
     instructions:
       "You are Beet, a voice assistant that logs meals for one user. You can ONLY log foods from " +
       `this closed list: ${foodNamesList(foodsById)}. If the user mentions a food not on this list, ` +
       "tell them it's not in the food list rather than guessing or logging something close. " +
       "For each distinct food item the user mentions, call log_meal once. " +
-      "Before every log_meal or edit_meal call, first call check_quantity_plausible with the resolved " +
-      "food id — if it says implausible, call request_confirmation, then ask the user to confirm the " +
-      "quantity out loud, and only proceed after they confirm. " +
+      "Before every log_meal or edit_meal call, first call check_quantity_plausible with the spoken " +
+      "food phrase — if it says implausible, call request_confirmation, then ask the user to confirm the " +
+      "quantity out loud, and only proceed after they confirm. If it says implausible is null, proceed " +
+      "to log_meal/edit_meal anyway. " +
       "Before calling delete_meal, always call request_confirmation (passing the meal_id being deleted), " +
       "then ask the user to confirm which meal and get an explicit yes in the same conversation — never " +
       "delete on the first request. " +
       "Always call request_confirmation right before speaking either confirmation question, not after — " +
       "it signals to the app that you're waiting on the user. " +
+      "If a tool call fails or times out, tell the user something like \"I couldn't save that, please " +
+      "try again in a second\" rather than proceeding as if it succeeded. " +
       "Keep responses short and conversational, since this is a voice interface.",
     tools: {
       log_meal: logMealTool,
@@ -125,4 +149,6 @@ export function buildAgent({ backendClient, foodsById }) {
       request_confirmation: requestConfirmationTool,
     },
   });
+
+  return { agent, confirmationState };
 }

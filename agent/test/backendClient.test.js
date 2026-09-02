@@ -99,4 +99,20 @@ describe("createBackendClient", () => {
     const [, options] = fetchMock.mock.calls[0];
     expect(JSON.parse(options.body)).toEqual({ status: "awaiting_confirmation", targetMealId: "m1" });
   });
+
+  it("logMeal passes an AbortSignal so a hung backend can't hang the call forever", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, { meal: { _id: "m1" } }));
+    await client.logMeal({ food: "roti", quantity: 2, unit: "piece" });
+    const [, options] = fetchMock.mock.calls[0];
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("logMeal generates a different idempotencyKey on each call", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, { meal: { _id: "m1" } }));
+    await client.logMeal({ food: "roti", quantity: 2, unit: "piece" });
+    await client.logMeal({ food: "roti", quantity: 2, unit: "piece" });
+    const key1 = JSON.parse(fetchMock.mock.calls[0][1].body).idempotencyKey;
+    const key2 = JSON.parse(fetchMock.mock.calls[1][1].body).idempotencyKey;
+    expect(key1).not.toBe(key2);
+  });
 });

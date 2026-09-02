@@ -3,8 +3,12 @@ import { randomUUID } from "node:crypto";
 
 export function createBackendClient({ baseUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:3001" } = {}) {
   async function request(path, options = {}) {
+    // A hung backend must not hang the whole voice turn — the SDK already
+    // turns a thrown fetch/abort error into a tool-error result the LLM
+    // sees, so no extra error handling is needed here.
     const res = await fetch(`${baseUrl}${path}`, {
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(5000),
       ...options,
     });
     if (res.status === 204) {

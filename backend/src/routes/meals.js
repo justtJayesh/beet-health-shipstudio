@@ -123,7 +123,19 @@ export function createMealsRouter({ index }) {
       if (loggedAt) meal.loggedAt = new Date(loggedAt);
       if (idempotencyKey) meal.idempotencyKey = idempotencyKey;
 
-      await meal.save();
+      try {
+        await meal.save();
+      } catch (err) {
+        // ponytail: mirrors POST's race-guard, same low-probability window —
+        // a concurrent request with the same idempotencyKey beat us to it.
+        if (err.code === 11000 && idempotencyKey) {
+          const existing = await Meal.findOne({ _id: req.params.id, userId: DEFAULT_USER_ID });
+          if (existing) {
+            return res.status(200).json({ meal: existing, deduped: true });
+          }
+        }
+        throw err;
+      }
       broadcast({ type: "meal_updated", meal });
       return res.json({ meal });
     } catch (err) {

@@ -27,8 +27,11 @@ Next Steps #2.
 
 ## What it does
 
-Exposes five tools to the LLM: `log_meal`, `edit_meal`, `delete_meal`,
-`find_recent_meals`, `check_quantity_plausible`. Every `log_meal`/`edit_meal`
+Exposes six tools to the LLM: `log_meal`, `edit_meal`, `delete_meal`,
+`find_recent_meals`, `check_quantity_plausible`, and `request_confirmation`
+(called right before the agent speaks a delete or quantity confirmation
+question, so the app can show `awaiting_confirmation` while it asks and
+while it waits for the answer). Every `log_meal`/`edit_meal`
 call carries a fresh idempotency key so a lost/retried tool-call response
 never double-writes. Deleting a meal requires an explicit confirmed turn —
 the system prompt enforces this, there's no server-side confirmation step.

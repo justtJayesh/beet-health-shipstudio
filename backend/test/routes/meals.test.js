@@ -314,6 +314,20 @@ describe("PATCH /api/meals/:id idempotency", () => {
     expect(second.body.deduped).toBeUndefined();
     expect(second.body.meal.quantity).toBe(4);
   });
+
+  it("degrades gracefully when meal.save() hits the unique idempotencyKey index (E11000 race), mirroring POST", async () => {
+    // Force a real E11000: another meal already owns "shared-key" for this
+    // user, so saving it onto a different meal collides with the unique
+    // index (userId, idempotencyKey).
+    await postMeal({ food: "roti", quantity: 1, unit: "piece", idempotencyKey: "shared-key" });
+    const { body: other } = await postMeal({ food: "dal", quantity: 1, unit: "katori" });
+
+    const { status, body } = await patchMeal(other.meal._id, { quantity: 2, idempotencyKey: "shared-key" });
+
+    expect(status).toBe(200);
+    expect(body.deduped).toBe(true);
+    expect(body.meal._id).toBe(other.meal._id);
+  });
 });
 
 describe("DELETE /api/meals/:id", () => {
