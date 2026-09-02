@@ -2,6 +2,7 @@
 import "dotenv/config";
 import express from "express";
 import { createFoodsRouter } from "./routes/foods.js";
+import { createMealsRouter } from "./routes/meals.js";
 import { registerClient } from "./sse/broadcast.js";
 import { buildFoodsIndex } from "./services/foodsResolver.js";
 import { connectDB } from "./db.js";
@@ -23,6 +24,7 @@ export function createApp({ index = buildFoodsIndex() } = {}) {
   });
 
   app.use("/api/foods", createFoodsRouter({ index }));
+  app.use("/api/meals", createMealsRouter({ index }));
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
