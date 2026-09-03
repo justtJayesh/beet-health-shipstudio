@@ -1,11 +1,22 @@
 // backend/src/routes/livekitToken.js
+import { randomUUID } from "node:crypto";
 import express from "express";
 import { AccessToken } from "livekit-server-sdk";
 import { DEFAULT_USER_ID } from "../constants.js";
 
-// Single fixed user/room — matches DEFAULT_USER_ID's single-user premise.
-// Two tabs open at once would collide in this room; acceptable at this scope.
-export const VOICE_ROOM_NAME = "beet-voice-session";
+// A fresh room name per session, NOT one fixed name.
+//
+// LiveKit fires automatic agent dispatch when a room is CREATED, not when a
+// participant joins. With a single fixed room name, only the very first join
+// ever dispatched an agent: the room then lingered server-side (empty rooms
+// survive for emptyTimeout), so every later click joined the still-existing
+// room, no dispatch fired, no agent ever arrived, and the client sat on
+// "Connecting…" forever with no error.
+//
+// A unique name per token guarantees the join creates the room, which
+// guarantees dispatch. It also removes the two-tabs-collide case the fixed
+// name had.
+export const VOICE_ROOM_PREFIX = "beet-voice-session";
 
 export function createLivekitTokenRouter() {
   const router = express.Router();
@@ -19,13 +30,15 @@ export function createLivekitTokenRouter() {
       });
     }
 
+    const roomName = `${VOICE_ROOM_PREFIX}-${randomUUID()}`;
+
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
       identity: DEFAULT_USER_ID,
     });
-    at.addGrant({ room: VOICE_ROOM_NAME, roomJoin: true, canPublish: true, canSubscribe: true });
+    at.addGrant({ room: roomName, roomJoin: true, canPublish: true, canSubscribe: true });
     const token = await at.toJwt();
 
-    return res.json({ token, url: LIVEKIT_URL, roomName: VOICE_ROOM_NAME });
+    return res.json({ token, url: LIVEKIT_URL, roomName });
   });
 
   return router;
