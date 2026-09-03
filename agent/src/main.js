@@ -24,8 +24,9 @@ const STATE_MAP = {
 };
 
 export default defineAgent({
-  // Loads the VAD model once per worker process instead of once per job, so a
-  // connecting user isn't waiting on model init before the agent can listen.
+  // Loads the VAD model once per worker process instead of once per job —
+  // without this, every "Talk to agent" click pays full VAD init cost before
+  // the session can start listening, on top of normal room-join time.
   prewarm: (proc) => {
     proc.userData.vad = new inference.VAD();
   },

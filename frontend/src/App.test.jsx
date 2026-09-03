@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import App from "./App.jsx";
 
 class MockEventSource {
@@ -33,26 +33,32 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("renders the title and loaded meals", async () => {
+  it("defaults to the Agent screen with sidebar nav visible", () => {
     render(<App />);
-    expect(screen.getByText(/Meal Log/i)).toBeInTheDocument();
-
-    act(() => MockEventSource.instances[0].emit("open", {}));
-
-    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
+    expect(screen.getByText("Talk to Beet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Agent" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Meal Log" })).toBeInTheDocument();
   });
 
-  it("renders the status line once an agent_status event arrives", async () => {
+  it("shows StatusLine on the Agent screen for awaiting_confirmation, which the voice orb doesn't cover", () => {
     render(<App />);
-    act(() => MockEventSource.instances[0].emit("open", {}));
-    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
 
     act(() => {
       MockEventSource.instances[0].emit("message", {
-        data: JSON.stringify({ type: "agent_status", status: "listening" }),
+        data: JSON.stringify({ type: "agent_status", status: "awaiting_confirmation", targetMealId: "a" }),
       });
     });
 
-    expect(screen.getByText("Agent: listening…")).toBeInTheDocument();
+    expect(screen.getByText("Agent: awaiting confirmation…")).toBeInTheDocument();
+  });
+
+  it("switching to Meal Log shows loaded meals", async () => {
+    render(<App />);
+    act(() => MockEventSource.instances[0].emit("open", {}));
+
+    fireEvent.click(screen.getByRole("button", { name: "Meal Log" }));
+
+    expect(screen.getByRole("button", { name: "Meal Log" })).toHaveClass("active");
+    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
   });
 });
