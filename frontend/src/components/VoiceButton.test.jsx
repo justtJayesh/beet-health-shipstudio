@@ -4,6 +4,7 @@ import { VoiceButton } from "./VoiceButton.jsx";
 
 let capturedOnMediaDeviceFailure;
 let mockAgentTranscriptions = [];
+let mockState;
 
 vi.mock("@livekit/components-react", () => ({
   LiveKitRoom: ({ children, token, serverUrl, onMediaDeviceFailure }) => {
@@ -15,8 +16,7 @@ vi.mock("@livekit/components-react", () => ({
     );
   },
   RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
-  useLocalParticipant: () => ({ microphoneTrack: undefined }),
-  useVoiceAssistant: () => ({ agentTranscriptions: mockAgentTranscriptions }),
+  useVoiceAssistant: () => ({ state: mockState, audioTrack: undefined, agentTranscriptions: mockAgentTranscriptions }),
   BarVisualizer: () => <div data-testid="bar-visualizer" />,
 }));
 
@@ -29,6 +29,7 @@ vi.mock("@livekit/components-styles", () => ({}));
 beforeEach(() => {
   capturedOnMediaDeviceFailure = undefined;
   mockAgentTranscriptions = [];
+  mockState = undefined;
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ token: "test-token", url: "wss://example.com", roomName: "beet-voice-session" }),
@@ -36,6 +37,12 @@ beforeEach(() => {
 });
 
 describe("VoiceButton", () => {
+  it("shows the idle headline and orb before connecting", () => {
+    render(<VoiceButton />);
+    expect(screen.getByText("Talk to Beet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /talk to agent/i })).toBeInTheDocument();
+  });
+
   it("fetches a token and connects when clicked", async () => {
     render(<VoiceButton />);
     fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
@@ -49,7 +56,15 @@ describe("VoiceButton", () => {
     expect(screen.getByTestId("room-audio-renderer")).toBeInTheDocument();
   });
 
-  it("shows the agent's last spoken line as text, since TTS audio is easy to miss", async () => {
+  it("shows a live state word as the headline before any transcript arrives", async () => {
+    mockState = "listening";
+    render(<VoiceButton />);
+    fireEvent.click(screen.getByRole("button", { name: /talk to agent/i }));
+
+    await waitFor(() => expect(screen.getByText("Listening…")).toBeInTheDocument());
+  });
+
+  it("shows the agent's last spoken line as the headline, since TTS audio is easy to miss", async () => {
     mockAgentTranscriptions = [
       { text: "How much milk did you have?", final: true, id: "1" },
     ];

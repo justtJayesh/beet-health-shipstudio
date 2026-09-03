@@ -84,27 +84,62 @@ body {
   text-align: center;
 }
 
+.voice-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* The orb is the one signature element: a calm sage sphere at rest that
+   fills with the agent's own live audio once connected — no separate
+   dot-row visualizer alongside it. */
 .agent-orb {
   width: 260px;
   height: 260px;
   border-radius: 50%;
   border: 1px solid var(--color-hairline);
   background: radial-gradient(circle at 35% 35%, #fff, var(--color-sage-dim) 40%, var(--color-sage) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.agent-title {
+/* @livekit/components-styles sizes bars by percentage height, which
+   collapses to 0px without an explicit height on this container. */
+.agent-orb .lk-audio-bar-visualizer {
+  height: 96px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-orb .lk-audio-bar {
+  width: 10px;
+  border-radius: 999px;
+  background: var(--color-sage);
+  filter: blur(1.5px);
+  opacity: 0.55;
+  transition: height 150ms ease, opacity 150ms ease, background 150ms ease;
+}
+
+.agent-orb .lk-audio-bar.lk-highlighted {
+  opacity: 0.95;
+  background: var(--color-near-black);
+  filter: blur(0.5px);
+}
+
+.agent-headline {
   font-family: var(--font-serif);
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 400;
   letter-spacing: -0.5px;
   margin: 0;
+  max-width: 560px;
 }
 
 .voice-button {
-  margin: 8px 0;
-}
-
-.voice-button button {
   font-family: inherit;
   font-size: 14px;
   padding: 10px 20px;
@@ -119,21 +154,6 @@ body {
   color: var(--color-error);
   font-size: 14px;
   margin: 8px 0 0;
-}
-
-.agent-transcript {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--color-ink);
-  margin: 12px 0 0;
-  max-width: 480px;
-}
-
-/* @livekit/components-styles sizes bars by percentage height, which
-   collapses to 0px without an explicit height on this container. */
-.lk-audio-bar-visualizer {
-  height: 60px;
-  margin-top: 12px;
 }
 
 .meal-log-screen {

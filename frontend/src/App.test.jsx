@@ -40,16 +40,16 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Meal Log" })).toBeInTheDocument();
   });
 
-  it("shows agent status on the Agent screen once an agent_status event arrives", () => {
+  it("shows StatusLine on the Agent screen for awaiting_confirmation, which the voice orb doesn't cover", () => {
     render(<App />);
 
     act(() => {
       MockEventSource.instances[0].emit("message", {
-        data: JSON.stringify({ type: "agent_status", status: "listening" }),
+        data: JSON.stringify({ type: "agent_status", status: "awaiting_confirmation", targetMealId: "a" }),
       });
     });
 
-    expect(screen.getByText("Agent: listening…")).toBeInTheDocument();
+    expect(screen.getByText("Agent: awaiting confirmation…")).toBeInTheDocument();
   });
 
   it("switching to Meal Log shows loaded meals", async () => {

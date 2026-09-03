@@ -1,13 +1,17 @@
 import { VoiceButton } from "./VoiceButton.jsx";
 import { StatusLine } from "./StatusLine.jsx";
 
+// The voice-assistant orb/headline already cover listening/thinking/speaking
+// live from LiveKit — StatusLine only adds something new for the
+// awaiting-confirmation case, which is backend-side (delete/edit confirm),
+// not part of the raw voice-assistant state.
 export function AgentScreen({ agentStatus, onDisconnect }) {
+  const showStatus = agentStatus?.status === "awaiting_confirmation";
+
   return (
     <section className="agent-screen">
-      <div className="agent-orb" aria-hidden="true" />
-      <h1 className="agent-title">Talk to Beet</h1>
       <VoiceButton onDisconnect={onDisconnect} />
-      <StatusLine agentStatus={agentStatus} />
+      {showStatus && <StatusLine agentStatus={agentStatus} />}
     </section>
   );
 }
