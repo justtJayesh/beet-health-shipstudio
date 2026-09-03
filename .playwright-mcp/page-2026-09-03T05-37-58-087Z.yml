@@ -1,9 +1,0 @@
-- generic [ref=e3]:
-  - navigation [ref=e4]:
-    - paragraph [ref=e5]: Beet
-    - button "Agent" [ref=e6] [cursor=pointer]
-    - button "Meal Log" [ref=e7] [cursor=pointer]
-  - main [ref=e8]:
-    - generic [ref=e10]:
-      - heading "Talk to Beet" [level=1] [ref=e12]
-      - button "Talk to agent" [ref=e13] [cursor=pointer]
