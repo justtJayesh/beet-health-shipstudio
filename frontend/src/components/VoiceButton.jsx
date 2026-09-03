@@ -35,7 +35,14 @@ function AgentPanel() {
   return (
     <>
       <div className="agent-orb">
-        <AgentAudioVisualizerWave trackRef={audioTrack} />
+        <AgentAudioVisualizerWave
+          size="lg"
+          state={state}
+          audioTrack={audioTrack}
+          color="#7C9473"
+          colorShift={0.3}
+          lineWidth={2}
+        />
       </div>
       <h1 className="agent-headline">{headline}</h1>
     </>

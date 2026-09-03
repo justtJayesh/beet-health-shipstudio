@@ -6,12 +6,14 @@ vi.mock("@livekit/components-react", () => ({
   LiveKitRoom: ({ children }) => <div data-testid="livekit-room">{children}</div>,
   RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
   useVoiceAssistant: () => ({ state: undefined, audioTrack: undefined, agentTranscriptions: [] }),
-  useAudioWaveform: () => ({ bars: [] }),
 }));
 vi.mock("livekit-client", () => ({
   MediaDeviceFailure: { PermissionDenied: "PermissionDenied", NotFound: "NotFound", DeviceInUse: "DeviceInUse", Other: "Other" },
 }));
 vi.mock("@livekit/components-styles", () => ({}));
+vi.mock("./AgentAudioVisualizerWave.jsx", () => ({
+  AgentAudioVisualizerWave: () => <div data-testid="agent-wave" />,
+}));
 
 describe("AgentScreen", () => {
   it("renders the Talk to Beet hero with the real Talk to agent button", () => {

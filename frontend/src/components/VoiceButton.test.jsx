@@ -17,7 +17,6 @@ vi.mock("@livekit/components-react", () => ({
   },
   RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
   useVoiceAssistant: () => ({ state: mockState, audioTrack: undefined, agentTranscriptions: mockAgentTranscriptions }),
-  useAudioWaveform: () => ({ bars: [] }),
 }));
 
 vi.mock("livekit-client", () => ({
@@ -25,6 +24,12 @@ vi.mock("livekit-client", () => ({
 }));
 
 vi.mock("@livekit/components-styles", () => ({}));
+
+// The wave shader has its own dedicated test file — here we only care that
+// VoiceButton's connect/disconnect/error logic works.
+vi.mock("./AgentAudioVisualizerWave.jsx", () => ({
+  AgentAudioVisualizerWave: () => <div data-testid="agent-wave" />,
+}));
 
 beforeEach(() => {
   capturedOnMediaDeviceFailure = undefined;

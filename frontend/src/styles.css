@@ -106,17 +106,6 @@ body {
   overflow: hidden;
 }
 
-.agent-wave {
-  width: 70%;
-  height: 96px;
-  display: block;
-}
-
-.agent-wave rect {
-  fill: var(--color-sage);
-  transition: height 100ms ease, y 100ms ease;
-}
-
 .agent-headline {
   font-family: var(--font-serif);
   font-size: 40px;
