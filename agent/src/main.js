@@ -41,6 +41,17 @@ export default defineAgent({
       llm: "openai/gpt-4o-mini",
       tts: "cartesia/sonic-2",
       vad: ctx.proc.userData.vad,
+      // Turn-taking tuned for the delete-confirmation moment (highest-risk per
+      // the design doc): minWords requires at least one transcribed word before
+      // counting speech as a real interruption, so a cough/breath/background
+      // noise while the agent reads back "delete X, confirm?" can't cut it off
+      // (default minWords:0 lets duration alone trigger a false barge-in).
+      // Endpointing/backchannel defaults are left as-is — SDK defaults already
+      // suppress backchannels near turn boundaries; changing them further needs
+      // a live mic pass to avoid guessing at numbers no one has heard.
+      turnHandling: {
+        interruption: { minWords: 1 },
+      },
     });
 
     session.on(AgentSessionEventTypes.AgentStateChanged, (event) => {
