@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: beet-health-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/meals
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: MONGO_URI
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+  - type: worker
+    name: beet-health-agent
+    runtime: docker
+    dockerfilePath: ./agent/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: BACKEND_URL
+        sync: false
