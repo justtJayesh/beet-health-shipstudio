@@ -15,6 +15,16 @@ const MIC_FAILURE_MESSAGES = {
 
 const IDLE_HEADLINE = "Talk to Beet";
 
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" strokeLinecap="round" />
+      <path d="M12 18v4M8 22h8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // One word per agent state, shown as the headline until the agent's first
 // transcript line arrives (transcripts take over from there).
 const STATE_HEADLINE = {
@@ -101,8 +111,14 @@ export function VoiceButton({ onDisconnect }) {
           <h1 className="agent-headline">{IDLE_HEADLINE}</h1>
         </>
       )}
-      <button type="button" className="voice-button" onClick={handleClick}>
-        {connection ? "Stop talking to agent" : "Talk to agent"}
+      <button
+        type="button"
+        className={`voice-button${connection ? " voice-button--active" : ""}`}
+        onClick={handleClick}
+        aria-label={connection ? "Stop talking to agent" : "Talk to agent"}
+        aria-pressed={Boolean(connection)}
+      >
+        <MicIcon />
       </button>
       {error && <p className="voice-button-error">{error.message}</p>}
     </div>

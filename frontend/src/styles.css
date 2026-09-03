@@ -74,10 +74,8 @@ body {
   min-width: 0;
 }
 
-/* Vertically centered, and the headline below the orb is a fixed 3-line box
-   (see .agent-headline) — so the whole group has a constant height and the orb
-   stays at the same screen position no matter how long the agent's reply is.
-   Positioning context for the out-of-flow status/error lines below. */
+/* Vertically centered. Positioning context for the out-of-flow status/error
+   lines below. */
 .agent-screen {
   position: relative;
   display: flex;
@@ -89,11 +87,16 @@ body {
   text-align: center;
 }
 
+/* The orb sits in normal flow at a fixed size, so it never moves. The
+   headline is taken fully out of flow (absolute, anchored below the orb) so
+   its content — however long the agent's reply gets — can never push, grow,
+   or otherwise affect the orb's layout. The two are visually stacked but
+   structurally independent. */
 .voice-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
 }
 
 /* The orb is the one signature element: a calm sage sphere at rest that
@@ -109,35 +112,60 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-/* Fixed 3-line box: reserves the same vertical space whether the headline is
-   one word ("Listening…") or a long wrapped transcript line, which is what
-   keeps the orb from moving. Longer replies clamp with an ellipsis. */
+/* Out of flow, anchored to the bottom of the orb's reserved space. Longer
+   replies clamp with an ellipsis instead of growing the box. Content is
+   vertically centered in the box (box-pack) so a short line like "Listening…"
+   doesn't leave a tall gap above the button below it. */
 .agent-headline {
+  position: absolute;
+  top: calc(260px + 20px);
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--font-serif);
   font-size: 40px;
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: -0.5px;
   margin: 0;
-  max-width: 560px;
-  height: 3.6em;
+  width: 560px;
+  max-width: calc(100vw - 40px);
+  height: 2.4em;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-box-pack: center;
   overflow: hidden;
 }
 
+/* Clears the headline's reserved space via margin (not panel padding) so the
+   headline staying out of flow can't leave the button floating in the wrong
+   place. */
 .voice-button {
-  font-family: inherit;
-  font-size: 14px;
-  padding: 10px 20px;
+  margin-top: 132px; /* 20px gap + 96px headline box (2 lines @ 40px/1.2) + 16px gap */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 1px solid var(--color-sage);
   border-radius: 999px;
   background: var(--color-sage-dim);
   color: var(--color-ink);
   cursor: pointer;
+}
+
+.voice-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.voice-button--active {
+  background: var(--color-sage);
+  color: #fff;
 }
 
 .voice-button-error {
