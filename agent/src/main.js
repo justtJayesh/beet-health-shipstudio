@@ -24,6 +24,12 @@ const STATE_MAP = {
 };
 
 export default defineAgent({
+  // Loads the VAD model once per worker process instead of once per job —
+  // without this, every "Talk to agent" click pays full VAD init cost before
+  // the session can start listening, on top of normal room-join time.
+  prewarm: (proc) => {
+    proc.userData.vad = new inference.VAD();
+  },
   entry: async (ctx) => {
     await ctx.connect();
 
@@ -35,7 +41,7 @@ export default defineAgent({
       stt: "auto",
       llm: "openai/gpt-4o-mini",
       tts: "cartesia/sonic-2",
-      vad: new inference.VAD(),
+      vad: ctx.proc.userData.vad,
       // Turn-taking tuned for the delete-confirmation moment (highest-risk per
       // the design doc): minWords requires at least one transcribed word before
       // counting speech as a real interruption, so a cough/breath/background

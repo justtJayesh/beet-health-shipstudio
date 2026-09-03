@@ -5,20 +5,27 @@ function formatTime(iso) {
   return isToday ? time : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
 }
 
+function formatFullDate(iso) {
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function MealRow({ meal, highlighted }) {
   const { name, quantity, unit, macros, mealType, loggedAt } = meal;
 
   return (
-    <div className={highlighted ? "meal-row highlighted" : "meal-row"}>
-      <div className="meal-row-main">
+    <tr className={highlighted ? "meal-row highlighted" : "meal-row"}>
+      <td className="meal-row-main">
         <span className="meal-row-name">{name}</span>
         <span className="meal-row-meta">
-          {quantity} {unit} · {mealType} · {formatTime(loggedAt)}
+          {quantity} {unit} · {mealType}
         </span>
-      </div>
-      <div className="meal-row-macros">
-        {macros.calories} kcal · {macros.protein}g P · {macros.carbs}g C · {macros.fat}g F
-      </div>
-    </div>
+      </td>
+      <td className="meal-row-time">{formatTime(loggedAt)}</td>
+      <td className="meal-row-date">{formatFullDate(loggedAt)}</td>
+      <td className="meal-row-calories">{macros.calories} kcal</td>
+      <td className="meal-row-macro">{macros.protein}g P</td>
+      <td className="meal-row-macro">{macros.carbs}g C</td>
+      <td className="meal-row-macro">{macros.fat}g F</td>
+    </tr>
   );
 }

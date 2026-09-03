@@ -1,12 +1,16 @@
 :root {
-  --color-canvas: #ffffff;
-  --color-ink: #212121;
+  --color-canvas: #fffdf9;
+  --color-ink: #1b1b1b;
   --color-near-black: #17171c;
-  --color-hairline: #d9d9dd;
+  --color-hairline: #e4e1d8;
   --color-muted: #75758a;
   --color-error: #b30000;
+  --color-sage: #7c9473;
+  --color-sage-dim: #edf1ea;
   --radius-xs: 4px;
+  --radius-md: 12px;
   --font-body: "Unica77 Cohere Web", "Inter", system-ui, sans-serif;
+  --font-serif: "Iowan Old Style", "Georgia", "Times New Roman", serif;
   --font-mono: "CohereMono", "Arial", system-ui, sans-serif;
 }
 
@@ -23,31 +27,115 @@ body {
   line-height: 1.5;
 }
 
-.app {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 24px 16px;
+.shell {
+  display: flex;
+  min-height: 100vh;
 }
 
-.app-title {
-  color: var(--color-near-black);
-  font-size: 24px;
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-hairline);
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  margin: 0 8px 32px;
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nav-item.active {
+  background: var(--color-sage-dim);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.main {
+  flex: 1;
+  padding: 40px;
+  min-width: 0;
+}
+
+/* Vertically centered, and the headline below the orb is a fixed 3-line box
+   (see .agent-headline) — so the whole group has a constant height and the orb
+   stays at the same screen position no matter how long the agent's reply is.
+   Positioning context for the out-of-flow status/error lines below. */
+.agent-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: calc(100vh - 80px);
+  text-align: center;
+}
+
+.voice-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* The orb is the one signature element: a calm sage sphere at rest that
+   fills with the agent's own live audio once connected — no separate
+   dot-row visualizer alongside it. */
+.agent-orb {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 1px solid var(--color-hairline);
+  background: radial-gradient(circle at 35% 35%, #fff, var(--color-sage-dim) 40%, var(--color-sage) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Fixed 3-line box: reserves the same vertical space whether the headline is
+   one word ("Listening…") or a long wrapped transcript line, which is what
+   keeps the orb from moving. Longer replies clamp with an ellipsis. */
+.agent-headline {
+  font-family: var(--font-serif);
+  font-size: 40px;
   font-weight: 400;
-  letter-spacing: -0.32px;
-  margin: 0 0 8px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  margin: 0;
+  max-width: 560px;
+  height: 3.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .voice-button {
-  margin-bottom: 16px;
-}
-
-.voice-button button {
   font-family: inherit;
   font-size: 14px;
-  padding: 8px 16px;
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-xs);
-  background: var(--color-canvas);
+  padding: 10px 20px;
+  border: 1px solid var(--color-sage);
+  border-radius: 999px;
+  background: var(--color-sage-dim);
   color: var(--color-ink);
   cursor: pointer;
 }
@@ -58,18 +146,28 @@ body {
   margin: 8px 0 0;
 }
 
-.agent-transcript {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--color-ink);
-  margin: 12px 0 0;
+/* Out of flow: these appear conditionally (confirmation prompt, mic error) and
+   would otherwise grow the centered column and push the orb up. */
+.agent-screen > .status-line,
+.agent-screen .voice-button-error {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  margin: 0;
 }
 
-/* @livekit/components-styles sizes bars by percentage height, which
-   collapses to 0px without an explicit height on this container. */
-.lk-audio-bar-visualizer {
-  height: 60px;
-  margin-top: 12px;
+.meal-log-screen {
+  max-width: 900px;
+}
+
+.app-title {
+  color: var(--color-near-black);
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.32px;
+  margin: 0 0 20px;
 }
 
 .status-line {
@@ -77,15 +175,30 @@ body {
   font-size: 14px;
   letter-spacing: 0.28px;
   color: var(--color-muted);
-  margin: 0 0 24px;
+  margin: 0;
 }
 
-.meal-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
+.meal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.meal-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-hairline);
+}
+
+.meal-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: top;
 }
 
 .meal-row.highlighted {
@@ -108,10 +221,21 @@ body {
   color: var(--color-muted);
 }
 
-.meal-row-macros {
-  font-size: 14px;
+.meal-row-time,
+.meal-row-date {
+  font-family: var(--font-mono);
+  font-size: 13px;
   color: var(--color-muted);
-  text-align: right;
+  white-space: nowrap;
+}
+
+.meal-row-calories {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.meal-row-macro {
+  color: var(--color-muted);
   white-space: nowrap;
 }
 
