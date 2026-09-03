@@ -24,6 +24,11 @@ const STATE_MAP = {
 };
 
 export default defineAgent({
+  // Loads the VAD model once per worker process instead of once per job, so a
+  // connecting user isn't waiting on model init before the agent can listen.
+  prewarm: (proc) => {
+    proc.userData.vad = new inference.VAD();
+  },
   entry: async (ctx) => {
     await ctx.connect();
 
@@ -35,7 +40,7 @@ export default defineAgent({
       stt: "auto",
       llm: "openai/gpt-4o-mini",
       tts: "cartesia/sonic-2",
-      vad: new inference.VAD(),
+      vad: ctx.proc.userData.vad,
     });
 
     session.on(AgentSessionEventTypes.AgentStateChanged, (event) => {
