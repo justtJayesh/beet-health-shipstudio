@@ -70,4 +70,8 @@ export default defineAgent({
   },
 });
 
-cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
+// Single fixed user (see README) — no need for the SDK's production default
+// of up to 4 idle processes, each loading its own VAD copy. That default
+// multiplies memory 4x for zero benefit here and was OOM-killing the
+// 512MB Render instance.
+cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url), numIdleProcesses: 1 }));
