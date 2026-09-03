@@ -84,20 +84,12 @@ body {
   text-align: center;
 }
 
-.aura-placeholder {
+.agent-orb {
   width: 260px;
   height: 260px;
   border-radius: 50%;
   border: 1px solid var(--color-hairline);
   background: radial-gradient(circle at 35% 35%, #fff, var(--color-sage-dim) 40%, var(--color-sage) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  text-align: center;
-  padding: 16px;
 }
 
 .agent-title {
@@ -106,6 +98,42 @@ body {
   font-weight: 400;
   letter-spacing: -0.5px;
   margin: 0;
+}
+
+.voice-button {
+  margin: 8px 0;
+}
+
+.voice-button button {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 20px;
+  border: 1px solid var(--color-sage);
+  border-radius: 999px;
+  background: var(--color-sage-dim);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.voice-button-error {
+  color: var(--color-error);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.agent-transcript {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-ink);
+  margin: 12px 0 0;
+  max-width: 480px;
+}
+
+/* @livekit/components-styles sizes bars by percentage height, which
+   collapses to 0px without an explicit height on this container. */
+.lk-audio-bar-visualizer {
+  height: 60px;
+  margin-top: 12px;
 }
 
 .meal-log-screen {

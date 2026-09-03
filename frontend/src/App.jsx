@@ -6,14 +6,14 @@ import { MealList } from "./components/MealList.jsx";
 
 export default function App() {
   const [view, setView] = useState("agent");
-  const { meals, agentStatus, error, retry } = useMealEvents();
+  const { meals, agentStatus, error, retry, clearAgentStatus } = useMealEvents();
 
   return (
     <div className="shell">
       <Sidebar active={view} onSelect={setView} />
       <main className="main">
         {view === "agent" ? (
-          <AgentScreen agentStatus={agentStatus} />
+          <AgentScreen agentStatus={agentStatus} onDisconnect={clearAgentStatus} />
         ) : (
           <section className="meal-log-screen">
             <h1 className="app-title">Meal Log</h1>
