@@ -1,10 +1,9 @@
 # TODOS
 
 Deferred/out-of-scope items surfaced across the `/autoplan` review pipeline
-for `docs/designs/voice-meal-logging-agent.md` (Phase 1 CEO, Phase 2 Design,
-Phase 2.5 DX, Phase 3 Eng — final gate). Each item was deliberately deferred,
-not forgotten. Full reasoning lives in the plan file's review sections;
-these are one-line rationales for quick scanning.
+(Phase 1 CEO, Phase 2 Design, Phase 2.5 DX, Phase 3 Eng — final gate). Each
+item was deliberately deferred, not forgotten. These are one-line rationales
+for quick scanning.
 
 ## From Phase 1 (CEO Review)
 

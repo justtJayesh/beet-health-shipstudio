@@ -4,9 +4,6 @@ Voice-first meal logger for a single fixed user: speak a meal, a LiveKit
 voice agent resolves it against a closed 30-food list, writes it to Mongo via
 a REST backend, and a read-only React page shows it appear live over SSE.
 
-Full design reasoning (problem statement, approaches considered, decision
-audit trail, reviewer passes) lives in
-[`docs/designs/voice-meal-logging-agent.md`](docs/designs/voice-meal-logging-agent.md).
 Deferred/out-of-scope items and their rationale live in [`TODOS.md`](TODOS.md).
 
 ## Architecture
