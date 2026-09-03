@@ -74,11 +74,15 @@ body {
   min-width: 0;
 }
 
+/* Anchored to a fixed top offset, not vertically centered — centering the
+   whole variable-height group (orb + headline + button) made the orb drift
+   up/down depending on how many lines the agent's reply wrapped to. The orb
+   now stays at the same screen position regardless of reply length. */
 .agent-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  padding-top: 12vh;
   gap: 24px;
   min-height: calc(100vh - 80px);
   text-align: center;
