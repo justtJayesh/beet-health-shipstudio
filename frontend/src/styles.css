@@ -74,15 +74,16 @@ body {
   min-width: 0;
 }
 
-/* Anchored to a fixed top offset, not vertically centered — centering the
-   whole variable-height group (orb + headline + button) made the orb drift
-   up/down depending on how many lines the agent's reply wrapped to. The orb
-   now stays at the same screen position regardless of reply length. */
+/* Vertically centered, and the headline below the orb is a fixed 3-line box
+   (see .agent-headline) — so the whole group has a constant height and the orb
+   stays at the same screen position no matter how long the agent's reply is.
+   Positioning context for the out-of-flow status/error lines below. */
 .agent-screen {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 12vh;
+  justify-content: center;
   gap: 24px;
   min-height: calc(100vh - 80px);
   text-align: center;
@@ -110,13 +111,22 @@ body {
   overflow: hidden;
 }
 
+/* Fixed 3-line box: reserves the same vertical space whether the headline is
+   one word ("Listening…") or a long wrapped transcript line, which is what
+   keeps the orb from moving. Longer replies clamp with an ellipsis. */
 .agent-headline {
   font-family: var(--font-serif);
   font-size: 40px;
   font-weight: 400;
+  line-height: 1.2;
   letter-spacing: -0.5px;
   margin: 0;
   max-width: 560px;
+  height: 3.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .voice-button {
@@ -134,6 +144,17 @@ body {
   color: var(--color-error);
   font-size: 14px;
   margin: 8px 0 0;
+}
+
+/* Out of flow: these appear conditionally (confirmation prompt, mic error) and
+   would otherwise grow the centered column and push the orb up. */
+.agent-screen > .status-line,
+.agent-screen .voice-button-error {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  margin: 0;
 }
 
 .meal-log-screen {
