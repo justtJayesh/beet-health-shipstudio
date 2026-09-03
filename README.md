@@ -48,19 +48,19 @@ credentials in three `.env` files (LiveKit keys, optionally a remote
 
 ### 1. Install dependencies (all three services)
 
-\`\`\`bash
+```bash
 (cd backend && npm install)
 (cd agent && npm install)
 (cd frontend && npm install)
-\`\`\`
+```
 
 ### 2. Create env files from the examples
 
-\`\`\`bash
+```bash
 cp backend/.env.example backend/.env
 cp agent/.env.example agent/.env
 cp frontend/.env.example frontend/.env
-\`\`\`
+```
 
 Defaults in `backend/.env` and `frontend/.env` work as-is for local dev with
 a local Mongo. **Stop here and hand off to a human** (or fill in your own
@@ -77,36 +77,36 @@ a working default and needs no edits for local dev.
 
 ### 3. Start MongoDB (if running locally and not already running)
 
-\`\`\`bash
+```bash
 brew services start mongodb-community   # Homebrew, or:
 docker start beet-mongo                 # Docker, or your own equivalent
-\`\`\`
+```
 
 ### 4. Start the three services, in order, each in its own terminal/process
 
-\`\`\`bash
+```bash
 (cd backend && npm start)     # Express API on :3001 — start first
 (cd agent && npm run dev)     # LiveKit voice worker, playground mode — needs backend up
 (cd frontend && npm run dev)  # React app on :5173 — needs backend up
-\`\`\`
+```
 
 ### 5. Verify
 
-\`\`\`bash
+```bash
 curl -sf http://127.0.0.1:3001/api/meals   # backend healthy → returns [] or meal list
 open http://localhost:5173                  # frontend UI
-\`\`\`
+```
 
 Open the LiveKit playground (link printed by `agent`'s `npm run dev`) to talk
 to the voice agent; logged meals should appear live on the frontend page.
 
 ### Running tests (no credentials needed)
 
-\`\`\`bash
+```bash
 (cd backend && npm test)   # spins up an in-memory Mongo automatically
 (cd agent && npm test)
 (cd frontend && npm test)
-\`\`\`
+```
 
 Full per-service detail (API reference, architecture, what's implemented) is
 in each service's own README, linked above.
