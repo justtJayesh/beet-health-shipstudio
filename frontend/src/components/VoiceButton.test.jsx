@@ -17,7 +17,7 @@ vi.mock("@livekit/components-react", () => ({
   },
   RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
   useVoiceAssistant: () => ({ state: mockState, audioTrack: undefined, agentTranscriptions: mockAgentTranscriptions }),
-  BarVisualizer: () => <div data-testid="bar-visualizer" />,
+  useAudioWaveform: () => ({ bars: [] }),
 }));
 
 vi.mock("livekit-client", () => ({

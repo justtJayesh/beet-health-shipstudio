@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { LiveKitRoom, RoomAudioRenderer, useVoiceAssistant, BarVisualizer } from "@livekit/components-react";
+import { LiveKitRoom, RoomAudioRenderer, useVoiceAssistant } from "@livekit/components-react";
 import { MediaDeviceFailure } from "livekit-client";
+import { AgentAudioVisualizerWave } from "./AgentAudioVisualizerWave.jsx";
 import "@livekit/components-styles";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001";
@@ -34,7 +35,7 @@ function AgentPanel() {
   return (
     <>
       <div className="agent-orb">
-        <BarVisualizer state={state} trackRef={audioTrack} barCount={7} />
+        <AgentAudioVisualizerWave trackRef={audioTrack} />
       </div>
       <h1 className="agent-headline">{headline}</h1>
     </>

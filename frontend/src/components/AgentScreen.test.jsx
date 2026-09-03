@@ -6,7 +6,7 @@ vi.mock("@livekit/components-react", () => ({
   LiveKitRoom: ({ children }) => <div data-testid="livekit-room">{children}</div>,
   RoomAudioRenderer: () => <div data-testid="room-audio-renderer" />,
   useVoiceAssistant: () => ({ state: undefined, audioTrack: undefined, agentTranscriptions: [] }),
-  BarVisualizer: () => <div data-testid="bar-visualizer" />,
+  useAudioWaveform: () => ({ bars: [] }),
 }));
 vi.mock("livekit-client", () => ({
   MediaDeviceFailure: { PermissionDenied: "PermissionDenied", NotFound: "NotFound", DeviceInUse: "DeviceInUse", Other: "Other" },
