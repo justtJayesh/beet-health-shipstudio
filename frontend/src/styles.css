@@ -1,12 +1,13 @@
 :root {
-  --color-canvas: #fffdf9;
-  --color-ink: #1b1b1b;
-  --color-near-black: #17171c;
-  --color-hairline: #e4e1d8;
-  --color-muted: #75758a;
+  --color-canvas: #fbf6f5;
+  --color-ink: #2b0e22;
+  --color-near-black: #260a1e;
+  --color-hairline: #f0dcea;
+  --color-muted: #8c7288;
   --color-error: #b30000;
-  --color-sage: #7c9473;
-  --color-sage-dim: #edf1ea;
+  --color-sage: #f48fe0;
+  --color-sage-dim: #fce9f8;
+  --color-leaf: #7cb342;
   --radius-xs: 4px;
   --radius-md: 12px;
   --font-body: "Unica77 Cohere Web", "Inter", system-ui, sans-serif;
@@ -43,9 +44,18 @@ body {
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-serif);
   font-size: 20px;
   margin: 0 8px 32px;
+}
+
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .nav-item {
@@ -66,6 +76,7 @@ body {
   background: var(--color-sage-dim);
   color: var(--color-ink);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--color-leaf);
 }
 
 .main {
