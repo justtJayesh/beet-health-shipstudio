@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import App from "./App.jsx";
 
 class MockEventSource {
@@ -33,19 +33,15 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("renders the title and loaded meals", async () => {
+  it("defaults to the Agent screen with sidebar nav visible", () => {
     render(<App />);
-    expect(screen.getByText(/Meal Log/i)).toBeInTheDocument();
-
-    act(() => MockEventSource.instances[0].emit("open", {}));
-
-    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
+    expect(screen.getByText("Talk to Beet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Agent" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Meal Log" })).toBeInTheDocument();
   });
 
-  it("renders the status line once an agent_status event arrives", async () => {
+  it("shows agent status on the Agent screen once an agent_status event arrives", () => {
     render(<App />);
-    act(() => MockEventSource.instances[0].emit("open", {}));
-    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
 
     act(() => {
       MockEventSource.instances[0].emit("message", {
@@ -54,5 +50,15 @@ describe("App", () => {
     });
 
     expect(screen.getByText("Agent: listening…")).toBeInTheDocument();
+  });
+
+  it("switching to Meal Log shows loaded meals", async () => {
+    render(<App />);
+    act(() => MockEventSource.instances[0].emit("open", {}));
+
+    fireEvent.click(screen.getByRole("button", { name: "Meal Log" }));
+
+    expect(screen.getByRole("button", { name: "Meal Log" })).toHaveClass("active");
+    await waitFor(() => expect(screen.getByText("Roti")).toBeInTheDocument());
   });
 });

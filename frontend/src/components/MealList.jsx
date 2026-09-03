@@ -15,13 +15,28 @@ export function MealList({ meals, agentStatus, error, onRetry }) {
       {meals.length === 0 ? (
         <EmptyState />
       ) : (
-        meals.map((meal) => (
-          <MealRow
-            key={meal._id}
-            meal={meal}
-            highlighted={agentStatus?.status === "awaiting_confirmation" && agentStatus?.targetMealId === meal._id}
-          />
-        ))
+        <table className="meal-table">
+          <thead>
+            <tr>
+              <th>Meal</th>
+              <th>Time</th>
+              <th>Date</th>
+              <th>Calories</th>
+              <th>Protein</th>
+              <th>Carbs</th>
+              <th>Fat</th>
+            </tr>
+          </thead>
+          <tbody>
+            {meals.map((meal) => (
+              <MealRow
+                key={meal._id}
+                meal={meal}
+                highlighted={agentStatus?.status === "awaiting_confirmation" && agentStatus?.targetMealId === meal._id}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

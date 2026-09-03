@@ -1,12 +1,16 @@
 :root {
-  --color-canvas: #ffffff;
-  --color-ink: #212121;
+  --color-canvas: #fffdf9;
+  --color-ink: #1b1b1b;
   --color-near-black: #17171c;
-  --color-hairline: #d9d9dd;
+  --color-hairline: #e4e1d8;
   --color-muted: #75758a;
   --color-error: #b30000;
+  --color-sage: #7c9473;
+  --color-sage-dim: #edf1ea;
   --radius-xs: 4px;
+  --radius-md: 12px;
   --font-body: "Unica77 Cohere Web", "Inter", system-ui, sans-serif;
+  --font-serif: "Iowan Old Style", "Georgia", "Times New Roman", serif;
   --font-mono: "CohereMono", "Arial", system-ui, sans-serif;
 }
 
@@ -23,53 +27,98 @@ body {
   line-height: 1.5;
 }
 
-.app {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 24px 16px;
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-hairline);
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  margin: 0 8px 32px;
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nav-item.active {
+  background: var(--color-sage-dim);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.main {
+  flex: 1;
+  padding: 40px;
+  min-width: 0;
+}
+
+.agent-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: calc(100vh - 80px);
+  text-align: center;
+}
+
+.aura-placeholder {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 1px solid var(--color-hairline);
+  background: radial-gradient(circle at 35% 35%, #fff, var(--color-sage-dim) 40%, var(--color-sage) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px;
+}
+
+.agent-title {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.meal-log-screen {
+  max-width: 900px;
 }
 
 .app-title {
   color: var(--color-near-black);
-  font-size: 24px;
+  font-family: var(--font-serif);
+  font-size: 28px;
   font-weight: 400;
   letter-spacing: -0.32px;
-  margin: 0 0 8px;
-}
-
-.voice-button {
-  margin-bottom: 16px;
-}
-
-.voice-button button {
-  font-family: inherit;
-  font-size: 14px;
-  padding: 8px 16px;
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-xs);
-  background: var(--color-canvas);
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.voice-button-error {
-  color: var(--color-error);
-  font-size: 14px;
-  margin: 8px 0 0;
-}
-
-.agent-transcript {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--color-ink);
-  margin: 12px 0 0;
-}
-
-/* @livekit/components-styles sizes bars by percentage height, which
-   collapses to 0px without an explicit height on this container. */
-.lk-audio-bar-visualizer {
-  height: 60px;
-  margin-top: 12px;
+  margin: 0 0 20px;
 }
 
 .status-line {
@@ -77,15 +126,30 @@ body {
   font-size: 14px;
   letter-spacing: 0.28px;
   color: var(--color-muted);
-  margin: 0 0 24px;
+  margin: 0;
 }
 
-.meal-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
+.meal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.meal-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-hairline);
+}
+
+.meal-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: top;
 }
 
 .meal-row.highlighted {
@@ -108,10 +172,21 @@ body {
   color: var(--color-muted);
 }
 
-.meal-row-macros {
-  font-size: 14px;
+.meal-row-time,
+.meal-row-date {
+  font-family: var(--font-mono);
+  font-size: 13px;
   color: var(--color-muted);
-  text-align: right;
+  white-space: nowrap;
+}
+
+.meal-row-calories {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.meal-row-macro {
+  color: var(--color-muted);
   white-space: nowrap;
 }
 
